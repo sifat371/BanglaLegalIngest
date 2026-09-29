@@ -12,7 +12,7 @@ class StrictModel(BaseModel):
 
 
 class EncodingKind(StrEnum):
-    """High-level text-encoding classification used by the pipeline."""
+    """High-level source text-encoding classification."""
 
     UNICODE_BANGLA = "unicode_bangla"
     BIJOY = "bijoy"
@@ -67,13 +67,17 @@ class LegalMetadata(StrictModel):
 
 
 class EncodingInfo(StrictModel):
-    """Encoding/language diagnostics captured during ingestion."""
+    """Source encoding diagnostics and normalization outcome."""
 
     kind: EncodingKind = EncodingKind.UNKNOWN
     has_bangla: bool = False
     unicode_bangla_chars: int = Field(default=0, ge=0)
     bijoy_indicators: int = Field(default=0, ge=0)
+    total_characters: int = Field(default=0, ge=0)
+    bijoy_candidate_lines: int = Field(default=0, ge=0)
     normalization_applied: bool = False
+    converted_lines: int = Field(default=0, ge=0)
+    conversion_failures: int = Field(default=0, ge=0)
 
 
 class ExtractionDiagnostics(StrictModel):

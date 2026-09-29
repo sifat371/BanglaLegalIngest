@@ -1,10 +1,10 @@
 # Legal Document Ingestion
 
-A reusable Python module for page-aware ingestion of multilingual Bangladesh legal PDFs, with a
-roadmap for legacy Bijoy normalization, legal metadata parsing, and retrieval-ready exports.
+A reusable Python module for page-aware ingestion of multilingual Bangladesh legal PDFs, including
+conservative detection and normalization of legacy Bijoy-encoded Bangla.
 
-> **Status:** Stage 2 active — package foundation and unified extraction API are implemented.
-> Bangla encoding normalization and legal metadata migration are the next stages.
+> Status: Stage 3 implemented — package foundation, unified extraction, and Bangla encoding
+> handling are available. Legal metadata parsing is the next migration stage.
 
 ## Why this project exists
 
@@ -15,27 +15,33 @@ downstream systems such as Law Buddy.
 
 ## Install
 
-For the lightweight extraction path:
+Lightweight PDF extraction:
 
-```bash
+~~~bash
 python -m pip install -e ".[manual]"
-```
+~~~
+
+Add Bijoy-to-Unicode conversion:
+
+~~~bash
+python -m pip install -e ".[manual,bangla]"
+~~~
 
 For development:
 
-```bash
-python -m pip install -e ".[manual,dev]"
-```
+~~~bash
+python -m pip install -e ".[manual,bangla,dev]"
+~~~
 
 Docling remains optional:
 
-```bash
-python -m pip install -e ".[docling]"
-```
+~~~bash
+python -m pip install -e ".[docling,bangla]"
+~~~
 
 ## Python API
 
-```python
+~~~python
 from legal_ingest import LegalDocumentPipeline
 
 pipeline = LegalDocumentPipeline()
@@ -43,45 +49,43 @@ result = pipeline.ingest("judgment.pdf")
 
 print(result.document.source_filename)
 print(result.document.pages[0].page_number)
-print(result.document.pages[0].text)
+print(result.document.encoding.kind)
+print(result.document.encoding.normalization_applied)
 print(result.diagnostics.extractor)
-```
+~~~
 
-Choose a backend explicitly:
+The default pipeline detects source encoding after extraction. If conservative Bijoy candidate
+lines are found and bijoy2unicode is installed, those lines are normalized to Unicode while
+non-candidate lines are preserved.
 
-```python
-pipeline = LegalDocumentPipeline(extractor="pypdf")
+Disable conversion while keeping detection:
+
+~~~python
+from legal_ingest import LegalDocumentPipeline, PipelineConfig
+
+pipeline = LegalDocumentPipeline(
+    PipelineConfig(convert_bijoy=False)
+)
 result = pipeline.ingest("judgment.pdf")
-```
-
-The default `auto` mode currently uses pdfplumber and falls back to pypdf if extraction fails or
-does not meet the configured minimum text length. Automatic Docling routing is intentionally
-deferred until the quality-routing stage.
+~~~
 
 ## CLI
 
-Extract a document and print canonical JSON:
-
-```bash
+~~~bash
 legal-ingest ingest judgment.pdf
-```
-
-Select a backend:
-
-```bash
 legal-ingest ingest judgment.pdf --extractor pypdf
-legal-ingest ingest judgment.pdf --extractor docling
-```
+legal-ingest ingest judgment.pdf --no-convert-bijoy
+~~~
 
-Inspect the stable schema:
+Inspect the canonical schema:
 
-```bash
+~~~bash
 legal-ingest schema --model result
-```
+~~~
 
 ## Current architecture
 
-```text
+~~~text
 PDF
  |
  v
@@ -93,51 +97,69 @@ LegalDocumentPipeline
  |
  v
 ExtractedContent
- |-- PageContent[]
- |-- combined text
- |-- warnings
+ |
+ v
+Bangla source-encoding detection
+ |
+ v
+selective Bijoy -> Unicode normalization
  |
  v
 LegalDocument + ExtractionDiagnostics
-```
+~~~
 
-Every backend now returns the same page-aware intermediate contract. The public pipeline computes a
-deterministic SHA-256 document identity, preserves source pages, and returns objects instead of
-writing files through hidden global paths.
+Every backend uses the same page-aware intermediate contract. The public pipeline computes a
+deterministic SHA-256 document identity, preserves page provenance, records encoding diagnostics,
+and returns objects instead of writing files through hidden global paths.
 
-See [docs/architecture.md](docs/architecture.md) and
-[docs/extractors.md](docs/extractors.md).
+See docs/architecture.md, docs/extractors.md, and docs/encoding.md.
 
-## What Stage 2 intentionally does not do
+## Encoding behavior
 
-The original manual script already contains experimental Bijoy detection/conversion and metadata
-regexes. Those are not silently copied into the new pipeline yet. They will be migrated and tested
-as separate stages so extraction, encoding normalization, and legal parsing can be evaluated
-independently.
+The source text is classified as one of:
 
-The legacy directories remain available during migration:
+- unicode_bangla
+- bijoy
+- mixed
+- none
 
-- `manual_ingestion/`
-- `docling_ingestion/`
+The detector is intentionally conservative and heuristic. It does not claim perfect encoding
+identification. Conversion is line-level rather than document-wide to reduce the risk of corrupting
+English or already-Unicode text.
+
+The result reports:
+
+~~~text
+unicode_bangla_chars
+bijoy_indicators
+bijoy_candidate_lines
+normalization_applied
+converted_lines
+conversion_failures
+~~~
 
 ## Known limitations
 
-- PDF input only;
+- the Bijoy detector still needs evaluation on a manually labeled corpus;
 - scanned/image-only PDFs are not yet an OCR baseline;
-- Docling support depends on a version with page-aware Markdown export;
-- `auto` currently routes only between pdfplumber and pypdf;
-- encoding information and legal metadata remain empty/default in the new API until Stages 3–4;
-- no benchmark results are claimed yet.
+- automatic extraction routing currently uses pdfplumber then pypdf;
+- legal metadata in the new API remains empty/default until Stage 4;
+- no benchmark numbers are claimed yet.
 
 ## Roadmap
 
-1. **Package foundation** — complete.
-2. **Unified extraction** — in progress in this release.
-3. **Bangla encoding layer** — tested Bijoy detection and normalization.
-4. **Legal metadata parsing** — modular parsers with provenance.
-5. **Quality routing and exporters** — automatic routing, JSON/Markdown, retrieval chunks.
-6. **Benchmarking** — manually verified gold set and published extraction metrics.
+1. Package foundation — complete.
+2. Unified extraction — complete.
+3. Bangla encoding layer — implemented, benchmark pending.
+4. Legal metadata parsing — modular parsers with provenance.
+5. Quality routing and exporters — automatic routing, JSON/Markdown, retrieval chunks.
+6. Benchmarking — manually verified gold set and published extraction metrics.
+
+## Legacy scripts
+
+The original manual_ingestion/ and docling_ingestion/ directories remain for historical comparison
+while their useful behavior is migrated into the package.
 
 ## License
 
-MIT. See [LICENSE](LICENSE).
+MIT. See LICENSE.

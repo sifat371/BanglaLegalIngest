@@ -1,6 +1,7 @@
 """Public package interface for legal-document-ingestion."""
 
 from legal_ingest.config import PipelineConfig
+from legal_ingest.encoding import BanglaEncodingNormalizer, detect_encoding, is_bijoy_line
 from legal_ingest.pipeline import LegalDocumentPipeline
 from legal_ingest.schemas import (
     EncodingInfo,
@@ -15,12 +16,15 @@ from legal_ingest.schemas import (
     Party,
 )
 
-__version__ = "0.2.0a1"
+__version__ = "0.3.0a1"
 
 __all__ = [
     "__version__",
+    "BanglaEncodingNormalizer",
     "LegalDocumentPipeline",
     "PipelineConfig",
+    "detect_encoding",
+    "is_bijoy_line",
     "EncodingInfo",
     "EncodingKind",
     "EvidenceSpan",

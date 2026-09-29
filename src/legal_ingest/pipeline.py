@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import TypeAlias
 
 from legal_ingest.config import ExtractorName, PipelineConfig
+from legal_ingest.encoding import process_extracted_content
 from legal_ingest.exceptions import ExtractionError, LegalIngestError, UnsupportedDocumentError
 from legal_ingest.extractors import DocumentExtractor, create_extractor
 from legal_ingest.schemas import ExtractionDiagnostics, IngestionResult, LegalDocument
@@ -15,7 +16,7 @@ PathInput: TypeAlias = str | Path
 
 
 class LegalDocumentPipeline:
-    """Coordinate extraction while keeping backends interchangeable."""
+    """Coordinate extraction and deterministic encoding normalization."""
 
     def __init__(
         self,
@@ -53,6 +54,12 @@ class LegalDocumentPipeline:
             fallback_used = False
             warnings = list(content.warnings)
 
+        content, encoding = process_extracted_content(
+            content,
+            convert_bijoy=self.config.convert_bijoy,
+        )
+        warnings = list(dict.fromkeys([*warnings, *content.warnings]))
+
         source_sha256 = self._sha256(path)
         elapsed = time.perf_counter() - started
 
@@ -60,6 +67,7 @@ class LegalDocumentPipeline:
             document_id=source_sha256,
             source_filename=path.name,
             source_sha256=source_sha256,
+            encoding=encoding,
             pages=content.pages if self.config.preserve_page_text else [],
             text=content.text,
         )
@@ -70,6 +78,9 @@ class LegalDocumentPipeline:
             quality_metrics={
                 "page_count": float(len(content.pages)),
                 "extracted_characters": float(len(content.text)),
+                "unicode_bangla_chars": float(encoding.unicode_bangla_chars),
+                "bijoy_indicators": float(encoding.bijoy_indicators),
+                "bijoy_candidate_lines": float(encoding.bijoy_candidate_lines),
             },
             warnings=warnings,
         )
@@ -132,7 +143,7 @@ class LegalDocumentPipeline:
             raise UnsupportedDocumentError(f"Expected a file, received: {path}")
         if path.suffix.lower() != ".pdf":
             raise UnsupportedDocumentError(
-                f"Stage 2 supports PDF input only, received: {path.suffix or 'no extension'}"
+                f"PDF input is currently required, received: {path.suffix or 'no extension'}"
             )
         return path
 

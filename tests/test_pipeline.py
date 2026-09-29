@@ -5,7 +5,7 @@ import pytest
 from legal_ingest import LegalDocumentPipeline, PipelineConfig
 from legal_ingest.exceptions import ExtractionError, UnsupportedDocumentError
 from legal_ingest.extractors.base import DocumentExtractor
-from legal_ingest.schemas import ExtractedContent, PageContent
+from legal_ingest.schemas import EncodingKind, ExtractedContent, PageContent
 
 
 class FakeExtractor(DocumentExtractor):
@@ -43,6 +43,27 @@ def test_pipeline_returns_canonical_result_and_hash(tmp_path) -> None:
     assert [page.page_number for page in result.document.pages] == [1, 2]
     assert result.diagnostics.extractor == "fake"
     assert result.diagnostics.fallback_used is False
+    assert result.document.encoding.kind == EncodingKind.NONE
+
+
+def test_pipeline_detects_bijoy_even_when_conversion_is_disabled(tmp_path) -> None:
+    path = tmp_path / "case.pdf"
+    path.write_bytes(b"fake")
+    bijoy_text = "Avwg AvBb ‡K †"
+
+    pipeline = LegalDocumentPipeline(
+        PipelineConfig(
+            min_extracted_characters=1,
+            convert_bijoy=False,
+        ),
+        extractor=FakeExtractor(text=bijoy_text),
+    )
+    result = pipeline.ingest(path)
+
+    assert result.document.encoding.kind == EncodingKind.BIJOY
+    assert result.document.encoding.bijoy_candidate_lines == 1
+    assert result.document.encoding.normalization_applied is False
+    assert result.document.pages[0].text == bijoy_text
 
 
 def test_pipeline_can_omit_page_payload_but_keep_full_text(tmp_path) -> None:
