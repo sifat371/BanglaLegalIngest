@@ -7,10 +7,10 @@ from legal_ingest.schemas import EvidenceSpan, PageContent
 
 JUDGE_PATTERN = re.compile(
     r"(?:Mr\.|Ms\.)?\s*Justice\s+"
-    r"(?P<name>[A-Z][A-Za-z.'-]*(?:\s+[A-Z][A-Za-z.'-]*){1,8})"
-    r"(?=\s+(?:And\s+(?:Mr\.|Ms\.)?\s*Justice|"
-    r"Death Reference|Criminal Appeal|Civil Appeal|Criminal Revision|"
-    r"Civil Revision|Writ Petition|Jail Appeal)|\s*[\r\n]|$)",
+    r"(?P<name>.+?)"
+    r"(?=\s+And\s+(?:Mr\.|Ms\.)?\s*Justice|"
+    r"\s+(?:Death Reference|Criminal Appeal|Civil Appeal|Criminal Revision|"
+    r"Civil Revision|Writ Petition|Jail Appeal)\b|[\r\n]|$)",
     re.IGNORECASE,
 )
 
