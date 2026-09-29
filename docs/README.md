@@ -11,7 +11,6 @@ For the complete maintainer/source-of-truth document, read [PROJECT_REFERENCE.md
 ## User guides
 
 - [Project naming and compatibility](naming.md)
-
 - [Getting started](getting-started.md)
 - [Public API](public-api.md)
 - [Exporters and retrieval chunks](exporters.md)
