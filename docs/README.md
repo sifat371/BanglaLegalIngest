@@ -2,6 +2,12 @@
 
 Start here if you are evaluating or integrating **BanglaLegalIngest**.
 
+For the complete maintainer/source-of-truth document, read [PROJECT_REFERENCE.md](../PROJECT_REFERENCE.md).
+
+## Project reference
+
+- [Complete project reference and maintainer source of truth](../PROJECT_REFERENCE.md)
+
 ## User guides
 
 - [Project naming and compatibility](naming.md)
