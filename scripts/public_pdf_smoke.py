@@ -41,6 +41,15 @@ def run(input_dir: Path) -> dict:
             preserve_page_text=True,
         )
     )
+    no_conversion_pipeline = LegalDocumentPipeline(
+        PipelineConfig(
+            extractor="auto",
+            min_extracted_characters=100,
+            parse_metadata=True,
+            preserve_page_text=True,
+            convert_bijoy=False,
+        )
+    )
 
     records = []
     failures = []
@@ -60,6 +69,35 @@ def run(input_dir: Path) -> dict:
 
         metadata = result.document.metadata
         expected = case["expected_case_number"]
+
+        normalization_differences = []
+        if result.document.encoding.normalization_applied:
+            source_result = no_conversion_pipeline.ingest(path)
+            for source_page, normalized_page in zip(
+                source_result.document.pages,
+                result.document.pages,
+                strict=True,
+            ):
+                source_lines = source_page.text.splitlines()
+                normalized_lines = normalized_page.text.splitlines()
+                for line_number, (source_line, normalized_line) in enumerate(
+                    zip(source_lines, normalized_lines, strict=False),
+                    start=1,
+                ):
+                    if source_line != normalized_line:
+                        normalization_differences.append(
+                            {
+                                "page": source_page.page_number,
+                                "line": line_number,
+                                "source": source_line,
+                                "normalized": normalized_line,
+                            }
+                        )
+                        if len(normalization_differences) >= 5:
+                            break
+                if len(normalization_differences) >= 5:
+                    break
+
         record = {
             "filename": case["filename"],
             "file_bytes": path.stat().st_size,
@@ -89,6 +127,7 @@ def run(input_dir: Path) -> dict:
             "normalization_applied": result.document.encoding.normalization_applied,
             "converted_lines": result.document.encoding.converted_lines,
             "conversion_failures": result.document.encoding.conversion_failures,
+            "normalization_differences": normalization_differences,
             "case_number": metadata.case_number,
             "expected_case_number": expected,
             "case_number_match": _normalize(metadata.case_number) == _normalize(expected),
