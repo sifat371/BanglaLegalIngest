@@ -30,3 +30,6 @@ jobs:
 
       - name: Test
         run: pytest
+
+      - name: Seed benchmark validation
+        run: legal-ingest benchmark

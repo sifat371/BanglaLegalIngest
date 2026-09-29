@@ -1,4 +1,4 @@
-"""Command-line interface backed by the same public pipeline API."""
+"""Command-line interface backed by the same public package APIs."""
 
 import argparse
 import json
@@ -6,6 +6,7 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from legal_ingest import LegalDocumentPipeline, PipelineConfig, __version__
+from legal_ingest.benchmarking import run_seed_benchmarks
 from legal_ingest.exporters import (
     chunks_to_jsonl,
     to_json,
@@ -100,6 +101,30 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Print compact JSON instead of indented JSON.",
     )
+
+    benchmark_parser = subparsers.add_parser(
+        "benchmark",
+        help="Run the committed metadata and encoding seed validations.",
+    )
+    benchmark_parser.add_argument(
+        "--repo-root",
+        default=".",
+        help="Repository root used to resolve benchmark source paths.",
+    )
+    benchmark_parser.add_argument(
+        "--metadata",
+        default="benchmarks/gold/metadata_seed.jsonl",
+        help="Metadata benchmark manifest path relative to repo root.",
+    )
+    benchmark_parser.add_argument(
+        "--encoding",
+        default="benchmarks/gold/encoding_seed.jsonl",
+        help="Encoding benchmark manifest path relative to repo root.",
+    )
+    benchmark_parser.add_argument(
+        "--output",
+        help="Optional JSON report path. Without this option the report is printed.",
+    )
     return parser
 
 
@@ -114,6 +139,15 @@ def _render_result(args, result: IngestionResult) -> str:
         )
         return chunks_to_jsonl(chunks)
     return to_json(result, indent=None if args.compact else 2)
+
+
+def _write_or_print(rendered: str, output_path: str | None) -> None:
+    if output_path:
+        output = Path(output_path)
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(rendered, encoding="utf-8")
+    else:
+        print(rendered, end="" if rendered.endswith("\n") else "\n")
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -135,14 +169,17 @@ def main(argv: Sequence[str] | None = None) -> int:
             parse_metadata=not args.no_metadata,
         )
         result = LegalDocumentPipeline(config).ingest(args.source)
-        rendered = _render_result(args, result)
+        _write_or_print(_render_result(args, result), args.output)
+        return 0
 
-        if args.output:
-            output = Path(args.output)
-            output.parent.mkdir(parents=True, exist_ok=True)
-            output.write_text(rendered, encoding="utf-8")
-        else:
-            print(rendered, end="" if rendered.endswith("\n") else "\n")
+    if args.command == "benchmark":
+        report = run_seed_benchmarks(
+            repo_root=args.repo_root,
+            metadata_manifest=args.metadata,
+            encoding_manifest=args.encoding,
+        )
+        rendered = json.dumps(report, indent=2, ensure_ascii=False) + "\n"
+        _write_or_print(rendered, args.output)
         return 0
 
     parser.print_help()
