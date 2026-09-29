@@ -46,6 +46,41 @@ def test_pipeline_returns_canonical_result_and_hash(tmp_path) -> None:
     assert result.document.encoding.kind == EncodingKind.NONE
 
 
+def test_pipeline_parses_metadata_from_page_content(tmp_path) -> None:
+    path = tmp_path / "case.pdf"
+    path.write_bytes(b"fake")
+    caption = (
+        "District: Rajshahi.\n"
+        "Supreme Court of Bangladesh High Court Division\n"
+        "Writ Petition No. 12 of 2026"
+    )
+
+    pipeline = LegalDocumentPipeline(
+        PipelineConfig(min_extracted_characters=1),
+        extractor=FakeExtractor(text=caption),
+    )
+    result = pipeline.ingest(path)
+
+    assert result.document.metadata.case_number == "Writ Petition No. 12 of 2026"
+    assert result.document.metadata.district == "Rajshahi"
+    assert result.diagnostics.quality_metrics["metadata_fields_populated"] >= 2
+
+
+def test_pipeline_can_disable_metadata_parsing(tmp_path) -> None:
+    path = tmp_path / "case.pdf"
+    path.write_bytes(b"fake")
+    caption = "Writ Petition No. 12 of 2026"
+
+    pipeline = LegalDocumentPipeline(
+        PipelineConfig(min_extracted_characters=1, parse_metadata=False),
+        extractor=FakeExtractor(text=caption),
+    )
+    result = pipeline.ingest(path)
+
+    assert result.document.metadata.case_number is None
+    assert result.document.metadata.evidence == {}
+
+
 def test_pipeline_detects_bijoy_even_when_conversion_is_disabled(tmp_path) -> None:
     path = tmp_path / "case.pdf"
     path.write_bytes(b"fake")

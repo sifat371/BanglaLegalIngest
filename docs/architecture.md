@@ -1,68 +1,55 @@
 # Architecture
 
-## Current boundary: Stage 3
+## Current boundary: Stage 4
 
-The package now has a common page-aware extraction layer and a deterministic Bangla encoding layer.
-Legal metadata parsing remains intentionally separate for Stage 4.
-
-## Canonical flow
+The module now separates extraction, encoding normalization, legal metadata parsing, and canonical
+document assembly.
 
 ~~~text
-PDF path
-   |
-   v
+PDF
+ |
+ v
 LegalDocumentPipeline
-   |
-   +--> pdfplumber
-   +--> pypdf
-   +--> Docling (optional)
-   |
-   v
-ExtractedContent
-   |
-   v
-source encoding detection
-   |
-   +--> Unicode Bangla
-   +--> Bijoy-like
-   +--> mixed
-   +--> none
-   |
-   v
-conservative line-level Bijoy normalization (optional)
-   |
-   v
-LegalDocument + ExtractionDiagnostics
+ |
+ +-- pdfplumber
+ +-- pypdf
+ +-- Docling (optional)
+ |
+ v
+ExtractedContent with PageContent[]
+ |
+ v
+Bangla source-encoding detection
+ |
+ v
+selective Bijoy -> Unicode normalization
+ |
+ v
+deterministic legal metadata parsers
+ |-- case identity
+ |-- court / district
+ |-- judges
+ |-- parties
+ |-- dates
+ |-- citations
+ |
+ v
+LegalDocument + page-relative metadata evidence
 ~~~
 
-## Encoding invariants
+Metadata parsing runs on normalized page text, so downstream fields see Unicode text where Bijoy
+conversion succeeded.
 
-- classification describes the extracted source before conversion;
-- page numbers never change during normalization;
-- non-candidate lines are preserved;
-- failed conversions preserve original text and surface warnings;
-- missing optional conversion dependencies do not prevent detection;
-- no LLM or network call is required.
+## Invariants
 
-## Extraction policy
+- extractors preserve one-based page identity;
+- encoding classification describes source text before conversion;
+- metadata parsers do not call external services or LLMs;
+- unsupported metadata stays empty rather than being guessed;
+- field evidence points to the page text used by the parser;
+- downstream systems can disable metadata parsing without changing extraction behavior.
 
-Explicit modes run only the requested backend:
+## Remaining plan
 
-- pdfplumber
-- pypdf
-- docling
-
-Auto mode remains intentionally conservative:
-
-1. run pdfplumber;
-2. accept it when extracted text meets min_extracted_characters;
-3. otherwise fall back to pypdf;
-4. fail clearly when both backends fail or remain below the configured minimum.
-
-Advanced quality routing and automatic Docling selection remain Stage 5 work.
-
-## Remaining migration plan
-
-- Stage 4: modular legal metadata parsing with provenance.
-- Stage 5: extraction quality routing, exporters, retrieval-ready chunks.
-- Stage 6: gold-set benchmarking and published metrics.
+- Stage 5: quality-based extractor routing, exporters, and retrieval-ready chunks.
+- Stage 6: manually verified gold sets and published extraction/metadata metrics.

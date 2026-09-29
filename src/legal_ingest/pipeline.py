@@ -10,13 +10,19 @@ from legal_ingest.config import ExtractorName, PipelineConfig
 from legal_ingest.encoding import process_extracted_content
 from legal_ingest.exceptions import ExtractionError, LegalIngestError, UnsupportedDocumentError
 from legal_ingest.extractors import DocumentExtractor, create_extractor
-from legal_ingest.schemas import ExtractionDiagnostics, IngestionResult, LegalDocument
+from legal_ingest.parsing import parse_legal_metadata
+from legal_ingest.schemas import (
+    ExtractionDiagnostics,
+    IngestionResult,
+    LegalDocument,
+    LegalMetadata,
+)
 
 PathInput: TypeAlias = str | Path
 
 
 class LegalDocumentPipeline:
-    """Coordinate extraction and deterministic encoding normalization."""
+    """Coordinate extraction, encoding normalization, and metadata parsing."""
 
     def __init__(
         self,
@@ -60,6 +66,12 @@ class LegalDocumentPipeline:
         )
         warnings = list(dict.fromkeys([*warnings, *content.warnings]))
 
+        metadata = (
+            parse_legal_metadata(content.pages)
+            if self.config.parse_metadata
+            else LegalMetadata()
+        )
+
         source_sha256 = self._sha256(path)
         elapsed = time.perf_counter() - started
 
@@ -67,6 +79,7 @@ class LegalDocumentPipeline:
             document_id=source_sha256,
             source_filename=path.name,
             source_sha256=source_sha256,
+            metadata=metadata,
             encoding=encoding,
             pages=content.pages if self.config.preserve_page_text else [],
             text=content.text,
@@ -81,6 +94,7 @@ class LegalDocumentPipeline:
                 "unicode_bangla_chars": float(encoding.unicode_bangla_chars),
                 "bijoy_indicators": float(encoding.bijoy_indicators),
                 "bijoy_candidate_lines": float(encoding.bijoy_candidate_lines),
+                "metadata_fields_populated": float(self._metadata_field_count(metadata)),
             },
             warnings=warnings,
         )
@@ -132,6 +146,21 @@ class LegalDocumentPipeline:
                 f"{extractor_name} extracted {len(text.strip())} characters, below the configured "
                 f"minimum of {self.config.min_extracted_characters}."
             )
+
+    @staticmethod
+    def _metadata_field_count(metadata: LegalMetadata) -> int:
+        values = (
+            metadata.case_number,
+            metadata.case_type,
+            metadata.court,
+            metadata.district,
+            metadata.judges,
+            metadata.parties,
+            metadata.hearing_dates,
+            metadata.judgment_date,
+            metadata.citations,
+        )
+        return sum(bool(value) for value in values)
 
     @staticmethod
     def _validate_source(source: PathInput) -> Path:

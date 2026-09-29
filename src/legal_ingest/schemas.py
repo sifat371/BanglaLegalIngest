@@ -53,7 +53,7 @@ class EvidenceSpan(StrictModel):
 
 
 class LegalMetadata(StrictModel):
-    """Normalized legal metadata independent of extraction backend."""
+    """Normalized legal metadata plus page-level extraction evidence."""
 
     case_number: str | None = None
     case_type: str | None = None
@@ -64,6 +64,7 @@ class LegalMetadata(StrictModel):
     hearing_dates: list[str] = Field(default_factory=list)
     judgment_date: str | None = None
     citations: list[str] = Field(default_factory=list)
+    evidence: dict[str, list[EvidenceSpan]] = Field(default_factory=dict)
 
 
 class EncodingInfo(StrictModel):
