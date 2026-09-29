@@ -1,183 +1,322 @@
 # Legal Document Ingestion
 
-A reusable Python module for page-aware ingestion of multilingual Bangladesh legal PDFs, including
-quality-aware extraction routing, legacy Bijoy normalization, deterministic legal metadata
-extraction, provenance, retrieval-ready exports, and executable regression validation.
+[![CI](https://github.com/sifat371/legal-document-ingestion/actions/workflows/ci.yml/badge.svg)](https://github.com/sifat371/legal-document-ingestion/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](pyproject.toml)
+[![Status: Alpha](https://img.shields.io/badge/status-alpha-orange.svg)](CHANGELOG.md)
 
-> Status: Stage 6 validation infrastructure is implemented. The module API is usable downstream,
-> but the committed benchmark seed is intentionally small and is not a representative accuracy
-> claim.
+A reusable Python toolkit for ingesting multilingual Bangladesh legal PDFs into page-aware,
+provenance-preserving document objects and retrieval-ready chunks.
 
-## Pipeline
+The package is designed for legal search, RAG, document analysis, research pipelines, and other
+systems that need a stable ingestion layer instead of one-off PDF scripts.
 
-~~~text
+> **Project status:** public alpha. The API is usable and covered by automated tests, but the
+> benchmark corpus is still small and some Bangladesh-specific document variants remain unsupported.
+
+## What it does
+
+- extracts page-aware text with **pdfplumber**, **pypdf**, or optional **Docling**;
+- routes between lightweight extractors using transparent extraction-usability signals;
+- detects Unicode Bangla, standard Bijoy-like text, and legacy PDF-font Bangla;
+- converts conservative standard-Bijoy candidates to Unicode when supported;
+- preserves unsafe legacy-font glyph text instead of silently corrupting it;
+- parses common Bangladesh legal metadata such as case number, court, judges, parties, and dates;
+- records page-relative evidence for extracted metadata;
+- exports canonical JSON, human-readable Markdown, and retrieval-ready JSONL chunks;
+- provides deterministic chunk IDs, page provenance, and character offsets for downstream RAG;
+- includes executable seed benchmarks and real-public-PDF smoke validation.
+
+## Why this exists
+
+Bangladesh legal PDFs are not uniform. A single corpus may contain English, Unicode Bangla,
+legacy Bijoy-like text, older font-encoded Bangla, inconsistent court captions, connected appeals,
+and different text extraction quality across PDF libraries.
+
+This project turns those concerns into a reusable module with explicit schemas and diagnostics:
+
+```text
 PDF
  |
  v
 quality-aware extraction
  |-- pdfplumber
  |-- pypdf
- |-- optional Docling fallback
+ |-- Docling (optional)
  |
  v
 page-aware text
  |
  v
-Bangla/Bijoy detection + selective normalization
+Bangla / legacy-encoding analysis
  |
  v
-legal metadata + evidence provenance
+deterministic legal metadata parsing
  |
  v
 LegalDocument
  |
  +-- JSON
  +-- Markdown
- +-- page-grounded RetrievalChunk[]
- |
- v
-benchmark regression checks
-~~~
+ +-- RetrievalChunk[]
+```
 
-## Install
+## Quick start
 
-Lightweight extraction:
+### 1. Clone and install
 
-~~~bash
-python -m pip install -e ".[manual]"
-~~~
+Until the first PyPI release is published, install from source:
 
-Add Bijoy conversion:
+```bash
+git clone https://github.com/sifat371/legal-document-ingestion.git
+cd legal-document-ingestion
 
-~~~bash
-python -m pip install -e ".[manual,bangla]"
-~~~
+python -m venv .venv
+source .venv/bin/activate  # Windows: .venv\Scripts\activate
 
-Development:
+python -m pip install --upgrade pip
+python -m pip install ".[manual,bangla]"
+```
 
-~~~bash
-python -m pip install -e ".[manual,bangla,dev]"
-~~~
+Python **3.11+** is required.
 
-Docling remains optional:
+### 2. Ingest a PDF
 
-~~~bash
-python -m pip install -e ".[docling,bangla]"
-~~~
-
-## Python API
-
-~~~python
-from legal_ingest import LegalDocumentPipeline, to_retrieval_chunks
+```python
+from legal_ingest import LegalDocumentPipeline
 
 result = LegalDocumentPipeline().ingest("judgment.pdf")
 
+print(result.document.source_filename)
 print(result.document.metadata.case_number)
+print(result.document.metadata.court)
+print(result.document.metadata.judges)
+print(result.document.encoding.kind)
 print(result.diagnostics.extractor)
-print(result.diagnostics.quality.usability_score)
+```
+
+### 3. Create retrieval chunks
+
+```python
+from legal_ingest import LegalDocumentPipeline, to_retrieval_chunks
+
+result = LegalDocumentPipeline().ingest("judgment.pdf")
 
 chunks = to_retrieval_chunks(
     result.document,
     chunk_size=1000,
     overlap=150,
 )
-~~~
+
+for chunk in chunks[:3]:
+    print(chunk.chunk_id, chunk.page_start, chunk.text[:120])
+```
+
+Each chunk retains the source document ID, page number, exact page-relative character offsets, and
+selected legal metadata.
 
 ## CLI
 
 Canonical JSON:
 
-~~~bash
+```bash
 legal-ingest ingest judgment.pdf
-~~~
+```
 
 Markdown:
 
-~~~bash
+```bash
 legal-ingest ingest judgment.pdf --format markdown
-~~~
+```
 
-Retrieval JSONL:
+Retrieval chunks as JSONL:
 
-~~~bash
-legal-ingest ingest judgment.pdf --format chunks --output chunks.jsonl
-~~~
+```bash
+legal-ingest ingest judgment.pdf \
+  --format chunks \
+  --output chunks.jsonl
+```
+
+Use a specific extractor:
+
+```bash
+legal-ingest ingest judgment.pdf --extractor pypdf
+```
+
+Allow optional Docling during automatic routing:
+
+```bash
+python -m pip install ".[docling,bangla]"
+legal-ingest ingest judgment.pdf --auto-docling
+```
 
 Run the committed regression validation:
 
-~~~bash
+```bash
 legal-ingest benchmark
-~~~
+```
 
-## Measured seed validation
+## Output model
 
-The Stage 6 CI run on Python 3.11 and 3.12 passes the full test suite and benchmark command. On the
-committed seed data:
+The public API returns an `IngestionResult` containing a canonical `LegalDocument` and extraction
+diagnostics.
 
-| Check | Seed size | Measured result |
-| --- | ---: | ---: |
-| Metadata normalized exact match | 1 repository sample / 7 fields | 1.000 macro field accuracy |
-| Metadata exact-case rate | 1 repository sample | 1.000 |
-| Metadata evidence coverage | 7 scored fields | 1.000 |
-| Encoding classification | 5 synthetic characterization cases | 1.000 accuracy |
+A simplified result looks like this:
 
-These numbers are intentionally scoped to the committed seed. They must not be interpreted as
-general accuracy on Bangladesh legal documents.
+```json
+{
+  "document": {
+    "document_id": "<sha256>",
+    "source_filename": "judgment.pdf",
+    "metadata": {
+      "case_number": "Criminal Appeal No. 3346 of 2022",
+      "court": "SUPREME COURT OF BANGLADESH HIGH COURT DIVISION",
+      "judges": ["Md. Shohrowardi"],
+      "parties": [],
+      "hearing_dates": ["01.06.2025", "02.06.2025", "22.06.2025"],
+      "judgment_date": "17.07.2025"
+    },
+    "pages": [
+      {
+        "page_number": 1,
+        "text": "..."
+      }
+    ]
+  },
+  "diagnostics": {
+    "extractor": "pdfplumber",
+    "fallback_used": false,
+    "warnings": []
+  }
+}
+```
 
-## Real public-PDF smoke validation
+See [Public API](docs/public-api.md) for the stable object boundary used by downstream systems.
 
-The Stage 6 branch also downloads four public Bangladesh Supreme Court judgments and runs the
-actual package end to end. The latest completed smoke run ingested all four documents and passed
-31/31 explicit metadata and safety checks, while producing page-grounded retrieval chunks for every
-document.
+## Validation
 
-This real-document testing exposed and led to fixes for date-format variants, split court headings,
-Vs. captions, judge/party false positives, and legacy PDF-font Bangla. Legacy-font Bangla is now
-preserved with a warning instead of being passed through an unsafe automatic conversion.
+The repository uses three different levels of validation:
 
-See docs/public-pdf-smoke.md and benchmarks/RESULTS.md.
+| Validation | Current scope |
+| --- | --- |
+| Unit/integration suite | 49 tests after the latest real-PDF fixes |
+| Committed metadata seed | 1 manually verified sample judgment / 7 scored fields |
+| Committed encoding seed | 5 characterization cases |
+| Public-PDF smoke test | 4 Bangladesh Supreme Court judgments / 31 explicit checks |
 
-## Validation scope
+The latest completed public-PDF smoke validation ingested all four documents, created
+page-grounded retrieval chunks for every document, and passed **31/31 explicit checks**. Those checks
+cover selected metadata fields and safety behavior; they are **not** a statistically representative
+accuracy estimate.
 
-The Stage 6 benchmark harness currently evaluates selected metadata fields from one manually
-verified repository sample and encoding behavior on a five-case synthetic characterization set.
+See [Validation Results](benchmarks/RESULTS.md), [Benchmarking](docs/benchmarking.md), and
+[Public PDF Smoke Test](docs/public-pdf-smoke.md).
 
-The repository does not yet contain a sufficiently broad manually reviewed corpus for general
-metadata-accuracy claims, nor the raw PDFs required for a real extraction-fidelity benchmark.
+## Bangla and legacy-font behavior
 
-See benchmarks/README.md, benchmarks/RESULTS.md, and docs/benchmarking.md.
+The package distinguishes:
 
-## Law Buddy boundary
+- `unicode_bangla` — already-valid Unicode Bangla;
+- `bijoy` — conservative standard-Bijoy conversion candidates;
+- `legacy_font_bangla` — old PDF-font glyph text that is detected and preserved;
+- `mixed` — more than one representation is present;
+- `none` — no supported Bangla representation detected.
 
-legal-document-ingestion owns extraction, normalization, metadata, provenance, quality diagnostics,
-and retrieval-chunk creation. Law Buddy should own indexing, embeddings, retrieval/ranking, answer
-generation, and citation verification.
+Legacy PDF-font Bangla is **not automatically converted** because real Supreme Court PDFs showed
+that passing those glyph strings through a standard Bijoy converter can produce plausible-looking
+but incorrect Unicode. The current behavior prioritizes source fidelity and emits a diagnostic
+warning.
 
-See docs/law_buddy_integration.md.
+See [Encoding and normalization](docs/encoding.md).
 
-## Known limitations
+## Project layout
+
+```text
+src/legal_ingest/
+├── benchmarking/   # executable validation helpers
+├── encoding/       # Bangla / Bijoy / legacy-font detection and normalization
+├── exporters/      # JSON, Markdown, retrieval chunks
+├── extractors/     # pdfplumber, pypdf, optional Docling
+├── parsing/        # deterministic legal metadata parsers
+├── quality/        # transparent extraction-usability metrics
+├── cli.py
+├── config.py
+├── pipeline.py
+└── schemas.py
+
+examples/           # small runnable usage examples
+tests/              # unit and integration tests
+benchmarks/         # committed validation seeds and measured results
+docs/               # architecture and usage documentation
+```
+
+The older `manual_ingestion/` and `docling_ingestion/` directories are retained as historical
+reference implementations. New integrations should use `legal_ingest`.
+
+## Documentation
+
+- [Getting started](docs/getting-started.md)
+- [Public API](docs/public-api.md)
+- [Architecture](docs/architecture.md)
+- [Extractors](docs/extractors.md)
+- [Encoding and normalization](docs/encoding.md)
+- [Legal metadata](docs/metadata.md)
+- [Quality routing](docs/quality-routing.md)
+- [Exporters and retrieval chunks](docs/exporters.md)
+- [Benchmarking](docs/benchmarking.md)
+- [Real public-PDF smoke validation](docs/public-pdf-smoke.md)
+- [Law Buddy integration boundary](docs/law_buddy_integration.md)
+- [Release process](docs/releasing.md)
+
+## Development
+
+```bash
+python -m pip install -e ".[manual,bangla,dev]"
+ruff check src tests examples
+pytest
+legal-ingest benchmark
+```
+
+Package metadata can also be validated before a release:
+
+```bash
+python -m pip install ".[release]"
+python -m build
+twine check dist/*
+```
+
+## Contributing
+
+Bug reports, parser fixtures, additional court-layout examples, encoding examples, documentation
+improvements, and benchmark annotations are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md)
+before opening a pull request.
+
+If you discover a security issue, follow [SECURITY.md](SECURITY.md) rather than opening a public
+issue.
+
+## Citation
+
+If this software supports academic or research work, see [CITATION.cff](CITATION.cff) for citation
+metadata.
+
+## Limitations
 
 - PDF input only;
-- scanned/image-only PDFs are not yet an OCR baseline;
-- quality-routing weights and thresholds are heuristic until evaluated on a broader corpus;
-- metadata patterns emphasize common English-language Bangladesh court layouts;
-- Bangla caption metadata needs dedicated patterns;
+- scanned/image-only PDFs do not yet have an OCR baseline;
+- routing weights and thresholds are heuristic rather than corpus-calibrated;
+- metadata patterns focus mainly on common English-language Bangladesh court layouts;
+- Bangla-language caption metadata needs broader coverage;
 - retrieval chunks are page-local by design;
-- committed validation data is too small for representative performance claims;
-- legacy PDF-font Bangla is detected and preserved, but not yet decoded into Unicode.
+- legacy PDF-font Bangla is detected and preserved, but not yet decoded to Unicode;
+- current benchmark data is too small for general accuracy claims.
 
-## Roadmap status
+## Responsible use
 
-1. Package foundation — complete.
-2. Unified extraction — complete.
-3. Bangla encoding layer — complete.
-4. Legal metadata parsing with provenance — complete.
-5. Quality routing and exporters — complete.
-6. Benchmark harness and seed validation — implemented; corpus expansion remains.
-
-The original manual_ingestion/ and docling_ingestion/ directories remain for historical comparison
-until the migration is complete.
+This project is document-processing and retrieval infrastructure. It does **not** provide legal
+advice and should not be treated as a substitute for qualified legal review. Downstream systems
+should preserve source citations, expose uncertainty, and verify important legal conclusions
+against authoritative material.
 
 ## License
 
-MIT. See LICENSE.
+Released under the [MIT License](LICENSE).

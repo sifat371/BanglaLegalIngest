@@ -1,0 +1,56 @@
+name: Bug report
+description: Report a reproducible ingestion, parsing, encoding, or export problem.
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please avoid attaching private or confidential legal documents.
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+      placeholder: "0.6.0a1 or commit SHA"
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Extraction
+        - Encoding / Bangla normalization
+        - Metadata parsing
+        - Quality routing
+        - Exporters / retrieval chunks
+        - CLI / packaging
+        - Benchmarking
+        - Documentation
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Minimal reproduction
+      description: Include commands/code and the smallest safe text fixture possible.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: observed
+    attributes:
+      label: Observed behavior
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostics
+      description: Paste relevant warnings, extractor attempts, encoding info, or traceback.
