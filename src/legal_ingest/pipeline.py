@@ -97,6 +97,10 @@ class LegalDocumentPipeline:
                 "unicode_bangla_chars": float(encoding.unicode_bangla_chars),
                 "bijoy_indicators": float(encoding.bijoy_indicators),
                 "bijoy_candidate_lines": float(encoding.bijoy_candidate_lines),
+                "convertible_bijoy_lines": float(encoding.convertible_bijoy_lines),
+                "legacy_font_candidate_lines": float(
+                    encoding.legacy_font_candidate_lines
+                ),
                 "metadata_fields_populated": float(self._metadata_field_count(metadata)),
             },
             warnings=warnings,

@@ -1,15 +1,38 @@
 # Bangla Encoding Detection and Normalization
 
-Stage 3 migrates the useful legacy Bijoy handling into a reusable, tested package layer.
+The encoding layer distinguishes Unicode Bangla, standard Bijoy-like text that can be offered to
+bijoy2unicode, and legacy PDF-font glyph text that should not be converted automatically.
 
-## Goals
+## Why the distinction matters
 
-The encoding layer has two separate responsibilities:
+Real Bangladesh court PDFs can expose old font-encoded Bangla as strings containing Latin-1 and
+extended glyph codes. That representation is not the same thing as ordinary Bijoy keyboard text.
+A public Supreme Court smoke test showed that feeding such a line directly to bijoy2unicode can
+produce plausible-looking but incorrect Unicode Bangla.
 
-1. classify extracted source text as Unicode Bangla, Bijoy-like, mixed, or neither;
-2. optionally convert only conservative Bijoy candidate lines to Unicode.
+The module therefore treats these cases separately:
 
-Detection runs even when conversion is disabled.
+- unicode_bangla: already Unicode Bangla;
+- bijoy: conservative standard-Bijoy conversion candidates;
+- legacy_font_bangla: old PDF-font glyph text that is preserved with a warning;
+- mixed: more than one Bangla representation is present;
+- none: no supported Bangla representation was detected.
+
+## Conversion policy
+
+Standard Bijoy candidates may be converted line by line when conversion is enabled. Legacy
+font-encoded lines are detected but preserved unchanged. This favors source fidelity over silently
+producing corrupted Unicode.
+
+The EncodingInfo diagnostics expose:
+
+- unicode_bangla_chars;
+- bijoy_candidate_lines;
+- convertible_bijoy_lines;
+- legacy_font_candidate_lines;
+- normalization_applied;
+- converted_lines;
+- conversion_failures.
 
 ## Public API
 
@@ -18,66 +41,15 @@ from legal_ingest import detect_encoding
 
 info = detect_encoding(text)
 print(info.kind)
-print(info.unicode_bangla_chars)
-print(info.bijoy_candidate_lines)
+print(info.convertible_bijoy_lines)
+print(info.legacy_font_candidate_lines)
 ~~~
 
-The ingestion pipeline performs the same analysis automatically:
+The ingestion pipeline applies the same detection automatically.
 
-~~~python
-result = LegalDocumentPipeline().ingest("judgment.pdf")
+## Limitations
 
-print(result.document.encoding.kind)
-print(result.document.encoding.normalization_applied)
-print(result.document.encoding.converted_lines)
-~~~
-
-## Conservative line detection
-
-The legacy script already used marker characters to decide which lines were safe to convert. Stage
-3 keeps that principle and makes it independently testable.
-
-A line is a candidate when it has:
-
-- at least two known Bijoy marker glyphs; or
-- one marker plus a known legacy pattern; or
-- at least two known legacy patterns.
-
-A single ASCII-looking pattern is not enough to rewrite an otherwise English line.
-
-This is deliberately heuristic. It is a baseline to benchmark later, not a claim of perfect
-encoding identification.
-
-## Conversion behavior
-
-When conversion is enabled:
-
-- non-candidate lines remain unchanged;
-- candidate lines are passed to bijoy2unicode;
-- a failed conversion preserves the original line;
-- conversion failures are counted and surfaced as warnings;
-- page numbers are preserved;
-- document-level classification describes the source text before conversion.
-
-If the optional converter is unavailable, detection still works and the original text is returned
-with a warning.
-
-Install conversion support with:
-
-~~~bash
-pip install -e ".[bangla]"
-~~~
-
-## Why no global text rewrite?
-
-English and Unicode Bangla often coexist with legacy text in Bangladesh legal PDFs. Converting an
-entire document as though every line were Bijoy risks corrupting already-correct content. Stage 3
-therefore keeps line-level selection and records exactly how many lines were converted.
-
-## Known limitations
-
-- the detector is heuristic and still needs a manually labeled benchmark;
-- some legacy text without known markers or patterns can be missed;
-- unusual English typography can still resemble legacy glyphs;
-- normalization currently targets Bijoy-to-Unicode only;
-- OCR/scanned PDFs remain outside the current baseline.
+Detection remains heuristic. The module does not yet include a font-specific decoder for all
+legacy Bangladesh PDF fonts. When legacy-font text is detected, the safe behavior is to preserve
+the source glyph string and surface a diagnostic warning. A future benchmarked decoder can be
+added behind an explicit strategy without changing this safety rule.
