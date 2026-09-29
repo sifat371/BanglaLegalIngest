@@ -1,0 +1,60 @@
+name: Public PDF Smoke Test
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "scripts/public_pdf_smoke.py"
+      - ".github/workflows/public-pdf-smoke.yml"
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install package
+        run: python -m pip install -e ".[manual,bangla]"
+
+      - name: Download public Supreme Court judgments
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .smoke/pdfs
+
+          curl -fL --retry 3 --retry-delay 2 \
+            "https://www.supremecourt.gov.bd/resources/documents/3425449_Death_Ref_106of2018.pdf" \
+            -o .smoke/pdfs/death_ref_106_2018.pdf
+
+          curl -fL --retry 3 --retry-delay 2 \
+            "https://www.supremecourt.gov.bd/resources/documents/2335716_Death_Reference_No_117_of_20217.pdf" \
+            -o .smoke/pdfs/death_ref_117_2017.pdf
+
+          curl -fL --retry 3 --retry-delay 2 \
+            "https://www.supremecourt.gov.bd/resources/documents/2102148_civil_revision_no_205_2021_dt_22_4_24.pdf" \
+            -o .smoke/pdfs/civil_revision_205_2021.pdf
+
+          curl -fL --retry 3 --retry-delay 2 \
+            "https://www.supremecourt.gov.bd/resources/documents/2027591_Cril_Rev_No_3346_of_2022.pdf" \
+            -o .smoke/pdfs/criminal_appeal_3346_2022.pdf
+
+          file .smoke/pdfs/*.pdf
+          du -h .smoke/pdfs/*.pdf
+
+      - name: Run ingestion smoke test
+        run: |
+          python scripts/public_pdf_smoke.py .smoke/pdfs --output .smoke/report.json
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: public-pdf-smoke-report
+          path: .smoke/report.json
+          if-no-files-found: warn
