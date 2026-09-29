@@ -67,6 +67,8 @@ def _is_party_candidate(value: str) -> bool:
         return False
     if _is_role_only(cleaned):
         return False
+    if VERSUS_PATTERN.search(cleaned):
+        return False
 
     lower = cleaned.lower()
     if any(marker in lower for marker in DISALLOWED_CONTEXT):
