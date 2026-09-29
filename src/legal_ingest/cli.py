@@ -46,6 +46,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="Minimum extracted non-whitespace characters required for success.",
     )
     ingest_parser.add_argument(
+        "--no-convert-bijoy",
+        action="store_true",
+        help="Detect source encoding but preserve candidate Bijoy text unchanged.",
+    )
+    ingest_parser.add_argument(
         "--compact",
         action="store_true",
         help="Print compact JSON instead of indented JSON.",
@@ -66,6 +71,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         config = PipelineConfig(
             extractor=args.extractor,
             min_extracted_characters=args.min_chars,
+            convert_bijoy=not args.no_convert_bijoy,
         )
         result = LegalDocumentPipeline(config).ingest(args.source)
         indent = None if args.compact else 2
