@@ -5,35 +5,41 @@
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](pyproject.toml)
 [![Status: Alpha](https://img.shields.io/badge/status-alpha-orange.svg)](CHANGELOG.md)
 
-BanglaLegalIngest is a reusable Python toolkit for ingesting multilingual Bangladesh legal PDFs
-into page-aware, provenance-preserving document objects and retrieval-ready chunks.
+**BanglaLegalIngest** is a reusable Python toolkit for turning Bangladesh legal PDFs containing
+English, Bangla, and legacy Bangla encodings into page-aware, provenance-preserving document
+objects and retrieval-ready chunks.
 
-The package is designed for legal search, RAG, document analysis, research pipelines, and other
-systems that need a stable ingestion layer instead of one-off PDF scripts.
+It is designed as a standalone ingestion layer for legal search, RAG, document analysis, and
+research pipelines—so downstream systems do not need to maintain their own one-off PDF parsing
+scripts.
 
-> **Project status:** public alpha. The API is usable and covered by automated tests, but the
-> benchmark corpus is still small and some Bangladesh-specific document variants remain unsupported.
+> **Project status:** public alpha. The core API is usable, tested on Python 3.11 and 3.12, and
+> validated against several public Bangladesh Supreme Court judgments. The benchmark corpus is
+> still small, so the project does not claim representative real-world accuracy.
 
-## What it does
+## Highlights
 
-- extracts page-aware text with **pdfplumber**, **pypdf**, or optional **Docling**;
-- routes between lightweight extractors using transparent extraction-usability signals;
-- detects Unicode Bangla, standard Bijoy-like text, and legacy PDF-font Bangla;
-- converts conservative standard-Bijoy candidates to Unicode when supported;
-- preserves unsafe legacy-font glyph text instead of silently corrupting it;
-- parses common Bangladesh legal metadata such as case number, court, judges, parties, and dates;
-- records page-relative evidence for extracted metadata;
-- exports canonical JSON, human-readable Markdown, and retrieval-ready JSONL chunks;
-- provides deterministic chunk IDs, page provenance, and character offsets for downstream RAG;
-- includes executable seed benchmarks and real-public-PDF smoke validation.
+- **Page-aware extraction** with pdfplumber, pypdf, or optional Docling.
+- **Quality-aware routing** between lightweight extractors using transparent usability signals.
+- **Bangla encoding analysis** for Unicode Bangla, standard Bijoy-like text, and legacy PDF-font
+  Bangla.
+- **Conservative normalization** that converts supported Bijoy candidates while preserving unsafe
+  legacy-font glyph text instead of silently corrupting it.
+- **Legal metadata parsing** for common Bangladesh court fields such as case number, court, judges,
+  parties, hearing dates, and judgment date.
+- **Evidence provenance** with page-relative source spans for extracted metadata.
+- **Retrieval-ready exports** as canonical JSON, Markdown, or page-grounded JSONL chunks.
+- **Stable chunk provenance** through document IDs, page numbers, and exact character offsets.
+- **Executable validation** through seed benchmarks and a real-public-PDF smoke workflow.
 
 ## Why this exists
 
 Bangladesh legal PDFs are not uniform. A single corpus may contain English, Unicode Bangla,
-legacy Bijoy-like text, older font-encoded Bangla, inconsistent court captions, connected appeals,
-and different text extraction quality across PDF libraries.
+Bijoy-like text, older font-encoded Bangla, inconsistent court captions, connected appeals, and
+different extraction quality across PDF libraries.
 
-This project turns those concerns into a reusable module with explicit schemas and diagnostics:
+BanglaLegalIngest turns those concerns into one reusable pipeline with explicit schemas and
+diagnostics:
 
 ```text
 PDF
@@ -80,16 +86,10 @@ python -m pip install ".[manual,bangla]"
 
 Python **3.11+** is required.
 
-### Naming
-
-- **Repository:** `BanglaLegalIngest`
-- **Python distribution:** `bangla-legal-ingest` (for the future PyPI release)
-- **Python import:** `legal_ingest`
-- **Primary CLI:** `bangla-legal-ingest`
-- **Compatibility CLI alias:** `legal-ingest`
-
-Keeping the import namespace stable avoids breaking downstream Python code while the public project
-name becomes more descriptive.
+> **Naming note:** the project/distribution name is `BanglaLegalIngest` / `bangla-legal-ingest`,
+> while the Python import remains `legal_ingest`. The primary CLI is `bangla-legal-ingest`;
+> `legal-ingest` remains available as a compatibility alias. See
+> [Project naming and compatibility](docs/naming.md).
 
 ### 2. Ingest a PDF
 
@@ -123,8 +123,8 @@ for chunk in chunks[:3]:
     print(chunk.chunk_id, chunk.page_start, chunk.text[:120])
 ```
 
-Each chunk retains the source document ID, page number, exact page-relative character offsets, and
-selected legal metadata.
+Each chunk retains source-document identity, the source page, exact page-relative character
+offsets, and selected legal metadata.
 
 ## CLI
 
@@ -167,12 +167,14 @@ Run the committed regression validation:
 bangla-legal-ingest benchmark
 ```
 
+Existing scripts that use the older `legal-ingest` command continue to work.
+
 ## Output model
 
-The public API returns an `IngestionResult` containing a canonical `LegalDocument` and extraction
-diagnostics.
+The public API returns an `IngestionResult` containing a canonical `LegalDocument` plus extraction
+and routing diagnostics.
 
-A simplified result looks like this:
+An abbreviated result has this shape:
 
 ```json
 {
@@ -183,7 +185,16 @@ A simplified result looks like this:
       "case_number": "Criminal Appeal No. 3346 of 2022",
       "court": "SUPREME COURT OF BANGLADESH HIGH COURT DIVISION",
       "judges": ["Md. Shohrowardi"],
-      "parties": [],
+      "parties": [
+        {
+          "name": "Nurunnahar",
+          "role": null
+        },
+        {
+          "name": "The State and another",
+          "role": null
+        }
+      ],
       "hearing_dates": ["01.06.2025", "02.06.2025", "22.06.2025"],
       "judgment_date": "17.07.2025"
     },
@@ -202,26 +213,7 @@ A simplified result looks like this:
 }
 ```
 
-See [Public API](docs/public-api.md) for the stable object boundary used by downstream systems.
-
-## Validation
-
-The repository uses three different levels of validation:
-
-| Validation | Current scope |
-| --- | --- |
-| Unit/integration suite | 49 tests after the latest real-PDF fixes |
-| Committed metadata seed | 1 manually verified sample judgment / 7 scored fields |
-| Committed encoding seed | 5 characterization cases |
-| Public-PDF smoke test | 4 Bangladesh Supreme Court judgments / 31 explicit checks |
-
-The latest completed public-PDF smoke validation ingested all four documents, created
-page-grounded retrieval chunks for every document, and passed **31/31 explicit checks**. Those checks
-cover selected metadata fields and safety behavior; they are **not** a statistically representative
-accuracy estimate.
-
-See [Validation Results](benchmarks/RESULTS.md), [Benchmarking](docs/benchmarking.md), and
-[Public PDF Smoke Test](docs/public-pdf-smoke.md).
+See [Public API](docs/public-api.md) for the canonical object boundary used by downstream systems.
 
 ## Bangla and legacy-font behavior
 
@@ -231,14 +223,36 @@ The package distinguishes:
 - `bijoy` — conservative standard-Bijoy conversion candidates;
 - `legacy_font_bangla` — old PDF-font glyph text that is detected and preserved;
 - `mixed` — more than one representation is present;
-- `none` — no supported Bangla representation detected.
+- `none` — no supported Bangla representation was detected.
 
-Legacy PDF-font Bangla is **not automatically converted** because real Supreme Court PDFs showed
-that passing those glyph strings through a standard Bijoy converter can produce plausible-looking
-but incorrect Unicode. The current behavior prioritizes source fidelity and emits a diagnostic
-warning.
+Legacy PDF-font Bangla is **not automatically converted**. Real Supreme Court PDFs showed that
+passing those glyph strings through a standard Bijoy converter can produce plausible-looking but
+incorrect Unicode. BanglaLegalIngest therefore prioritizes source fidelity and emits a diagnostic
+warning instead of silently rewriting uncertain text.
 
 See [Encoding and normalization](docs/encoding.md).
+
+## Validation
+
+The repository uses four complementary validation layers:
+
+| Validation | Current scope |
+| --- | --- |
+| Unit/integration CI | Python 3.11 and 3.12 |
+| Committed metadata seed | 1 manually verified sample judgment / 7 scored fields |
+| Committed encoding seed | 5 characterization cases |
+| Public-PDF smoke test | 4 Bangladesh Supreme Court judgments / 31 explicit checks |
+
+The latest completed public-PDF smoke validation ingested all four documents, created page-grounded
+retrieval chunks for every document, and passed **31/31 explicit checks**. Those checks cover
+selected metadata fields and safety behavior; they are **not** a statistically representative
+accuracy estimate.
+
+The exact unit-test count is intentionally left to CI because it changes as regression coverage
+grows.
+
+See [Validation Results](benchmarks/RESULTS.md), [Benchmarking](docs/benchmarking.md), and
+[Public PDF Smoke Test](docs/public-pdf-smoke.md).
 
 ## Project layout
 
@@ -262,11 +276,12 @@ docs/               # architecture and usage documentation
 ```
 
 The older `manual_ingestion/` and `docling_ingestion/` directories are retained as historical
-reference implementations. New integrations should use `legal_ingest`.
+reference implementations. New integrations should use the `legal_ingest` package.
 
 ## Documentation
 
 - [Getting started](docs/getting-started.md)
+- [Project naming and compatibility](docs/naming.md)
 - [Public API](docs/public-api.md)
 - [Architecture](docs/architecture.md)
 - [Extractors](docs/extractors.md)
@@ -288,7 +303,7 @@ pytest
 bangla-legal-ingest benchmark
 ```
 
-Package metadata can also be validated before a release:
+Validate package metadata before a release:
 
 ```bash
 python -m pip install ".[release]"
@@ -299,8 +314,8 @@ twine check dist/*
 ## Contributing
 
 Bug reports, parser fixtures, additional court-layout examples, encoding examples, documentation
-improvements, and benchmark annotations are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md)
-before opening a pull request.
+improvements, and benchmark annotations are welcome. Please read
+[CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request.
 
 If you discover a security issue, follow [SECURITY.md](SECURITY.md) rather than opening a public
 issue.
@@ -323,10 +338,10 @@ metadata.
 
 ## Responsible use
 
-This project is document-processing and retrieval infrastructure. It does **not** provide legal
-advice and should not be treated as a substitute for qualified legal review. Downstream systems
-should preserve source citations, expose uncertainty, and verify important legal conclusions
-against authoritative material.
+BanglaLegalIngest is document-processing and retrieval infrastructure. It does **not** provide
+legal advice and should not be treated as a substitute for qualified legal review. Downstream
+systems should preserve source citations, expose uncertainty, and verify important legal
+conclusions against authoritative material.
 
 ## License
 
