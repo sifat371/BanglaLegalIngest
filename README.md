@@ -109,16 +109,30 @@ Run the committed regression validation:
 legal-ingest benchmark
 ~~~
 
+## Measured seed validation
+
+The Stage 6 CI run on Python 3.11 and 3.12 passes the full test suite and benchmark command. On the
+committed seed data:
+
+| Check | Seed size | Measured result |
+| --- | ---: | ---: |
+| Metadata normalized exact match | 1 repository sample / 7 fields | 1.000 macro field accuracy |
+| Metadata exact-case rate | 1 repository sample | 1.000 |
+| Metadata evidence coverage | 7 scored fields | 1.000 |
+| Encoding classification | 5 synthetic characterization cases | 1.000 accuracy |
+
+These numbers are intentionally scoped to the committed seed. They must not be interpreted as
+general accuracy on Bangladesh legal documents.
+
 ## Validation scope
 
 The Stage 6 benchmark harness currently evaluates selected metadata fields from one manually
 verified repository sample and encoding behavior on a five-case synthetic characterization set.
 
-These results are regression checks only. The repository does not yet contain a sufficiently broad
-manually reviewed corpus for general metadata-accuracy claims, nor the raw PDFs required for a
-real extraction-fidelity benchmark.
+The repository does not yet contain a sufficiently broad manually reviewed corpus for general
+metadata-accuracy claims, nor the raw PDFs required for a real extraction-fidelity benchmark.
 
-See benchmarks/README.md and docs/benchmarking.md.
+See benchmarks/README.md, benchmarks/RESULTS.md, and docs/benchmarking.md.
 
 ## Law Buddy boundary
 
