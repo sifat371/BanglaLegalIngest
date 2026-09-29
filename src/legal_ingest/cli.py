@@ -51,6 +51,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="Detect source encoding but preserve candidate Bijoy text unchanged.",
     )
     ingest_parser.add_argument(
+        "--no-metadata",
+        action="store_true",
+        help="Skip deterministic legal metadata parsing.",
+    )
+    ingest_parser.add_argument(
         "--compact",
         action="store_true",
         help="Print compact JSON instead of indented JSON.",
@@ -72,6 +77,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             extractor=args.extractor,
             min_extracted_characters=args.min_chars,
             convert_bijoy=not args.no_convert_bijoy,
+            parse_metadata=not args.no_metadata,
         )
         result = LegalDocumentPipeline(config).ingest(args.source)
         indent = None if args.compact else 2

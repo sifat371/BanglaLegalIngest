@@ -8,12 +8,13 @@ ExtractorName = Literal["auto", "pdfplumber", "pypdf", "docling"]
 
 
 class PipelineConfig(BaseModel):
-    """Runtime configuration shared by future extractor implementations."""
+    """Runtime configuration shared by the ingestion stages."""
 
     model_config = ConfigDict(extra="forbid")
 
     extractor: ExtractorName = "auto"
     convert_bijoy: bool = True
+    parse_metadata: bool = True
     preserve_page_text: bool = True
     min_extracted_characters: int = Field(default=100, ge=0)
     output_encoding: Literal["utf-8"] = "utf-8"
