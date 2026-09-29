@@ -1,0 +1,52 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "legal-document-ingestion"
+version = "0.1.0a1"
+description = "Reusable ingestion primitives for multilingual Bangladesh legal documents"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "pydantic>=2.9,<3",
+]
+
+[project.optional-dependencies]
+manual = [
+  "pdfplumber>=0.10.0",
+  "pypdf>=3.17.0",
+  "bijoy2unicode>=0.1.0",
+]
+docling = [
+  "docling>=2.0.0",
+  "tqdm>=4.66.0",
+]
+dev = [
+  "pytest>=8.3",
+  "ruff>=0.7",
+]
+all = [
+  "pdfplumber>=0.10.0",
+  "pypdf>=3.17.0",
+  "bijoy2unicode>=0.1.0",
+  "docling>=2.0.0",
+  "tqdm>=4.66.0",
+]
+
+[project.scripts]
+legal-ingest = "legal_ingest.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/legal_ingest"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]

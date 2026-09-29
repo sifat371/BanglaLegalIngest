@@ -1,2 +1,29 @@
+# Legacy pipeline data
 docling_ingestion/data/
 manual_ingestion/data/
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+*.egg-info/
+build/
+dist/
+
+# Environments
+.venv/
+venv/
+.env
+.env.*
+
+# Generated outputs
+outputs/
+artifacts/
+*.log
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
