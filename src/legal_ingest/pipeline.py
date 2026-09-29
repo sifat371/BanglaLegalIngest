@@ -11,7 +11,12 @@ from legal_ingest.encoding import process_extracted_content
 from legal_ingest.exceptions import ExtractionError, LegalIngestError, UnsupportedDocumentError
 from legal_ingest.extractors import DocumentExtractor, create_extractor
 from legal_ingest.parsing import parse_legal_metadata
-from legal_ingest.schemas import ExtractionDiagnostics, IngestionResult, LegalDocument, LegalMetadata
+from legal_ingest.schemas import (
+    ExtractionDiagnostics,
+    IngestionResult,
+    LegalDocument,
+    LegalMetadata,
+)
 
 PathInput: TypeAlias = str | Path
 
