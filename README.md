@@ -1,172 +1,160 @@
-## Legal Document Ingestion: Handling Bijoy Encoding and Structured Parsing
+# Legal Document Ingestion
 
-### Overview
+Reusable foundations for processing multilingual Bangladesh legal documents, with particular
+attention to mixed English/Bangla text and legacy Bijoy-encoded Bangla.
 
-This repository contains experiments on ingesting legal case PDFs that contain both English and Bangla text. A particular challenge in these documents is that Bangla text is often encoded in legacy Bijoy encoding rather than Unicode, which causes parsing errors in standard document processing pipelines.
+> **Status:** active modularization. The original manual and Docling pipelines are preserved
+> while their behavior is migrated into the new `legal_ingest` package.
 
-The purpose of this project was to evaluate different ingestion approaches and understand their behavior when processing multilingual legal documents.
+## Why this project exists
 
----
+Bangladesh legal PDFs can combine:
 
-### Problem
+- English and Bangla in the same document;
+- Unicode Bangla and legacy Bijoy-encoded text;
+- complex court-document layouts;
+- legal metadata such as case numbers, benches, parties, dates, and citations.
 
-Many legal documents in Bangladesh:
+The repository began as an experiment comparing a lightweight pdfplumber/pypdf pipeline with a
+layout-aware Docling pipeline. It is now being upgraded into a reusable ingestion module with a
+stable output contract suitable for downstream retrieval systems such as Law Buddy.
 
-- Contain English and Bangla in the same PDF
-    
-- Use Bijoy encoding for Bangla text
-    
-- Have complex layouts including headings, sections, and citations
-    
+## Current package foundation
 
-Standard extraction tools may:
+Stage 1 introduces:
 
-- Corrupt Bangla text
-    
-- Lose document structure
-    
-- Fail to preserve reading order
-    
+- installable `src/legal_ingest` package;
+- canonical Pydantic schemas;
+- shared pipeline configuration;
+- domain-specific exceptions;
+- a small CLI for inspecting the canonical JSON schema;
+- pytest coverage for the contracts;
+- Ruff linting;
+- GitHub Actions CI;
+- optional dependency groups for lightweight and Docling-based extraction.
 
-This project compares two ingestion approaches to study these issues.
+The extraction algorithms still live in the legacy directories during this stage. Moving them
+behind common extractor interfaces is the next migration step.
 
----
+## Install
 
-### Approach 1: Manual Ingestion Pipeline
+Base package:
 
-The first pipeline extracts text using PDF parsing tools and performs preprocessing steps:
-
-- Text extraction using pdfplumber
-    
-- Detection of Bangla encoding
-    
-- Line-level Bijoy to Unicode conversion
-    
-- Metadata extraction using regex
-    
-- Text normalization and cleanup
-    
-
-Result:
-
-- Bangla text was converted correctly to Unicode
-    
-- Metadata extraction worked reliably
-    
-- Some structural formatting from the original document was lost
-    
-
-This approach is implemented in:
-
-```
-manual_ingestion/
+```bash
+python -m pip install -e .
 ```
 
----
+Development tools:
 
-### Approach 2: Docling-Based Ingestion
-
-The second pipeline uses Docling to perform structured parsing.
-
-Steps:
-
-- Layout-aware PDF parsing
-    
-- Markdown export
-    
-- Structured JSON export
-    
-- Metadata extraction
-    
-
-Result:
-
-- Document structure was preserved more accurately
-    
-- Headings and sections were detected correctly
-    
-- Bangla text was not always decoded correctly due to Bijoy encoding
-    
-
-This approach is implemented in:
-
-```
-docling_ingestion/
+```bash
+python -m pip install -e ".[dev]"
 ```
 
----
+Legacy lightweight extraction dependencies:
 
-### Observations
-
-From these experiments:
-
-1. Layout-aware parsers improve structural quality but do not automatically solve encoding issues.
-    
-2. Legacy Bangla encodings such as Bijoy require preprocessing or conversion before structured parsing.
-    
-3. Metadata extraction using simple pattern matching is effective for legal documents with consistent formatting.
-    
-4. A hybrid pipeline combining encoding normalization with structured parsing may provide the best results.
-    
-
----
-
-### Repository Structure
-
-```
-legal-document-ingestion/
-│
-├── README.md                          # Main project overview
-├── .gitignore                         # Exclude data, logs, outputs
-│
-├── manual_ingestion/                  # Approach 1: Lightweight pipeline
-│   ├── README.md                      # Pipeline-specific docs
-│   ├── requirements.txt               # pdfplumber, pypdf, bijoy2unicode
-│   ├── ingest_legal_cases.py          # Main script
-│   └── data/
-│       ├── raw_cases/                 # Input PDFs
-│       └── extracted_cases/           # Output files
-│           ├── *.txt                  # Extracted text
-│           ├── *_metadata.json        # Metadata
-│           ├── processing_summary.json
-│           └── ingestion.log          # Logs
-│
-├── docling_ingestion/                 # Approach 2: Advanced pipeline
-│   ├── README.md                      # Pipeline-specific docs
-│   ├── requirements.txt               # docling, tqdm
-│   ├── ingest_with_docling.py         # Main script
-│   └── data/
-│       ├── raw_cases/                 # Input PDFs
-│       └── extracted_cases/           # Output files
-│           ├── *.md                   # Markdown output
-│           ├── *.json                 # Structured JSON
-│           ├── *_metadata.json        # Metadata
-│           ├── processing_summary.json
-│           └── ingestion.log          # Logs
-│
-└── samples/                           # Example outputs
-    ├── sample_output_pdfplumber.txt   # Manual pipeline result
-    ├── sample_output_docling.md       # Docling pipeline result
-    └── sample_metadata.json           # Sample metadata
+```bash
+python -m pip install -e ".[manual]"
 ```
 
----
+Docling dependencies:
 
-### Current Status
+```bash
+python -m pip install -e ".[docling]"
+```
 
-✅ **Manual Pipeline (pdfplumber + bijoy2unicode)**: Fully working
-- Successfully processes PDFs with Bijoy Bengali text
-- Line-level selective conversion preserves English text
-- Tested on sample legal case PDF
+## Package contract
 
-⚠️ **Docling Pipeline**: Requires PyTorch installation
-- Code is complete and ready to run
-- Requires additional ML framework dependencies
-- Not tested due to environment constraints
+```python
+from legal_ingest import LegalDocument, PipelineConfig
 
-### Running the Pipelines
+config = PipelineConfig(extractor="auto", convert_bijoy=True)
 
-#### Manual pipeline (Working)
+document_schema = LegalDocument.model_json_schema()
+```
+
+Inspect the schema from the CLI:
+
+```bash
+legal-ingest schema --model result
+```
+
+## Target architecture
+
+```text
+legal PDF
+   |
+   v
+extractor (auto / pdfplumber / pypdf / docling)
+   |
+   v
+page-aware text
+   |
+   v
+Bangla encoding analysis and normalization
+   |
+   v
+legal metadata and structure parsing
+   |
+   v
+canonical LegalDocument
+   |
+   +--> JSON / Markdown
+   |
+   +--> provenance-aware retrieval chunks
+```
+
+See [docs/architecture.md](docs/architecture.md).
+
+## Existing extraction experiments
+
+### Manual pipeline
+
+The original `manual_ingestion/` implementation currently provides:
+
+- pdfplumber extraction with pypdf fallback;
+- heuristic Bangla/Bijoy detection;
+- line-level Bijoy-to-Unicode conversion;
+- regex-based legal metadata extraction;
+- text normalization;
+- text and metadata export.
+
+### Docling pipeline
+
+The original `docling_ingestion/` implementation provides:
+
+- layout-aware PDF conversion;
+- Markdown export;
+- JSON export;
+- regex-based legal metadata extraction.
+
+The legacy Docling path has not yet been validated as thoroughly as the manual path and is being
+kept separate until the common extractor interface is introduced.
+
+## Known limitations
+
+- legacy metadata extraction is regex-driven and has been tested on only a small set of documents;
+- party extraction is not yet reliable across document formats;
+- Bijoy detection currently uses heuristics;
+- the legacy pipelines have different output structures;
+- scanned/image-only PDFs are not yet a supported baseline;
+- benchmark results have not yet been established.
+
+These are migration targets rather than hidden production claims.
+
+## Roadmap
+
+1. **Package foundation** — schemas, config, CLI, tests, CI.
+2. **Unified extraction** — common pdfplumber, pypdf, and optional Docling backends.
+3. **Bangla encoding layer** — tested Bijoy detection and normalization.
+4. **Legal metadata parsing** — modular parsers with provenance.
+5. **Quality routing and exporters** — automatic fallback, JSON/Markdown, retrieval chunks.
+6. **Benchmarking** — manually verified gold set and published extraction metrics.
+
+## Legacy usage
+
+The original scripts remain available during migration.
+
+Manual:
 
 ```bash
 cd manual_ingestion
@@ -174,65 +162,14 @@ pip install -r requirements.txt
 python ingest_legal_cases.py
 ```
 
-#### Docling pipeline (Requires PyTorch)
+Docling:
 
 ```bash
 cd docling_ingestion
-pip install torch  # Install PyTorch first
 pip install -r requirements.txt
 python ingest_with_docling.py
 ```
 
----
+## License
 
-### Requirements
-
-Manual pipeline:
-
-- pdfplumber (>=0.10.0)
-- pypdf (>=3.17.0)
-- bijoy2unicode (>=0.1.0)
-
-Docling pipeline:
-
-- docling (>=2.0.0) — **Requires PyTorch**
-- tqdm (>=4.66.0)
-
-**Note:** Docling requires PyTorch/TensorFlow for full functionality. Install with:
-```bash
-pip install torch  # or tensorflow
-pip install docling tqdm
-```
-    
-
----
-
-### Limitations
-
-- Tested on a small number of legal documents
-    
-- Bijoy conversion relies on heuristic detection
-    
-- Some formatting artifacts remain in extracted text
-    
-
----
-
-### Future Work
-
-Possible improvements include:
-
-- Preprocessing PDFs to normalize encoding before structured parsing
-    
-- Combining Docling with a Bangla encoding normalization stage
-    
-- Testing on a larger collection of legal documents
-    
-- Evaluating impact on downstream retrieval quality
-    
-
----
-
-### Purpose of This Repository
-
-This repository is intended as a learning and experimentation project focused on document ingestion challenges in multilingual legal corpora.
+MIT. See [LICENSE](LICENSE).
