@@ -280,6 +280,7 @@ reference implementations. New integrations should use the `legal_ingest` packag
 
 ## Documentation
 
+- [Complete project reference / maintainer source of truth](PROJECT_REFERENCE.md)
 - [Getting started](docs/getting-started.md)
 - [Project naming and compatibility](docs/naming.md)
 - [Public API](docs/public-api.md)
