@@ -2,10 +2,6 @@ name: Public PDF Smoke Test
 
 on:
   workflow_dispatch:
-  pull_request:
-    paths:
-      - "scripts/public_pdf_smoke.py"
-      - ".github/workflows/public-pdf-smoke.yml"
 
 jobs:
   smoke:
@@ -49,8 +45,7 @@ jobs:
           du -h .smoke/pdfs/*.pdf
 
       - name: Run ingestion smoke test
-        run: |
-          python scripts/public_pdf_smoke.py .smoke/pdfs --output .smoke/report.json
+        run: python scripts/public_pdf_smoke.py .smoke/pdfs --output .smoke/report.json
 
       - uses: actions/upload-artifact@v4
         if: always()
