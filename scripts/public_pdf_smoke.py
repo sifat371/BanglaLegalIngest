@@ -83,6 +83,12 @@ def run(input_dir: Path) -> dict:
                 else None
             ),
             "encoding": result.document.encoding.kind.value,
+            "unicode_bangla_chars": result.document.encoding.unicode_bangla_chars,
+            "bijoy_indicators": result.document.encoding.bijoy_indicators,
+            "bijoy_candidate_lines": result.document.encoding.bijoy_candidate_lines,
+            "normalization_applied": result.document.encoding.normalization_applied,
+            "converted_lines": result.document.encoding.converted_lines,
+            "conversion_failures": result.document.encoding.conversion_failures,
             "case_number": metadata.case_number,
             "expected_case_number": expected,
             "case_number_match": _normalize(metadata.case_number) == _normalize(expected),
