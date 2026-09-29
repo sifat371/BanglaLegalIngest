@@ -1,62 +1,69 @@
 # Architecture
 
-## Stage 1 boundary
+## Current boundary: Stage 2
 
-Stage 1 establishes the package and the contracts that later extraction backends must honor.
-It does **not** replace the existing manual and Docling scripts yet.
+The package foundation is now active and extraction backends are being migrated behind one
+page-aware contract. The legacy scripts remain in the repository for comparison while the new
+module becomes the supported integration surface.
 
 The public package is `legal_ingest`.
 
 ## Canonical flow
 
 ```text
-source document
-      |
-      v
- extractor backend
-      |
-      v
- page-aware extracted text
-      |
-      v
- encoding normalization
-      |
-      v
- legal metadata parsing
-      |
-      v
- canonical LegalDocument
-      |
-      +--> JSON / Markdown
-      |
-      +--> retrieval-ready chunks
+PDF path
+   |
+   v
+LegalDocumentPipeline
+   |
+   +--> pdfplumber
+   +--> pypdf
+   +--> Docling (optional)
+   |
+   v
+ExtractedContent
+   |  - pages[]
+   |  - combined text
+   |  - warnings
+   v
+LegalDocument + ExtractionDiagnostics
 ```
 
-Every backend will eventually return the same `IngestionResult`, consisting of:
+Stage 2 does not yet perform Bangla/Bijoy normalization or legal metadata parsing. Those remain
+separate migration stages so extractor behavior can be tested independently.
 
-- `LegalDocument`: normalized content, pages, encoding information, and legal metadata.
-- `ExtractionDiagnostics`: extractor identity, fallback behavior, quality metrics, and warnings.
+## Extraction policy
+
+Explicit modes run only the requested backend:
+
+- `pdfplumber`
+- `pypdf`
+- `docling`
+
+`auto` is intentionally conservative in Stage 2:
+
+1. run pdfplumber;
+2. accept it when extracted text meets `min_extracted_characters`;
+3. otherwise fall back to pypdf;
+4. fail clearly when both backends fail or remain below the configured minimum.
+
+Docling is not part of automatic quality routing yet. More advanced quality metrics and routing
+belong to Stage 5.
 
 ## Design rules
 
-1. **Backend-independent schema** — pdfplumber, pypdf, and Docling must not create incompatible
-   output formats.
-2. **Page provenance first** — page identity is preserved as structured data rather than embedded
-   only as text markers.
-3. **Deterministic core** — the base package must not require an LLM or paid API.
-4. **Optional heavy dependencies** — Docling remains an optional installation extra.
-5. **No hidden filesystem behavior** — future library APIs accept explicit inputs and return
-   objects; exporters decide when files are written.
-6. **Downstream independence** — Law Buddy can consume the stable schema, but this repository
-   never imports Law Buddy.
+1. **Backend-independent schema** — every backend returns `ExtractedContent`.
+2. **Page provenance first** — page identity is structured data, not a synthetic text marker.
+3. **No hidden writes** — extraction returns objects and does not write output files.
+4. **Deterministic identity** — the pipeline records a SHA-256 source digest as document ID.
+5. **Optional heavy dependencies** — Docling is imported lazily.
+6. **Deterministic core** — no LLM or paid API is required.
+7. **Downstream independence** — Law Buddy can consume the schema later, but this package never
+   imports Law Buddy.
 
-## Migration plan
+## Remaining migration plan
 
-The legacy directories are retained during migration:
-
-- `manual_ingestion/`
-- `docling_ingestion/`
-
-Stage 2 will move extraction behavior behind backend interfaces while preserving current
-functionality. Later stages will migrate encoding normalization, legal metadata parsing, quality
-routing, exporters, and benchmark tooling.
+- Stage 3: tested Bangla/Bijoy detection and normalization.
+- Stage 4: modular legal metadata parsing with provenance.
+- Stage 5: extraction quality routing, exporters, retrieval-ready chunks.
+- Stage 6: gold-set benchmarking and published metrics.
