@@ -1,14 +1,14 @@
 cff-version: 1.2.0
 message: "If you use this software in academic work, please cite it using this metadata."
-title: "Legal Document Ingestion"
+title: "BanglaLegalIngest"
 type: software
 authors:
   - given-names: "Md."
     family-names: "Sifat"
-repository-code: "https://github.com/sifat371/legal-document-ingestion"
-url: "https://github.com/sifat371/legal-document-ingestion"
+repository-code: "https://github.com/sifat371/BanglaLegalIngest"
+url: "https://github.com/sifat371/BanglaLegalIngest"
 license: MIT
-version: "0.6.0a1"
+version: "0.7.0a1"
 keywords:
   - legal document ingestion
   - Bangladesh

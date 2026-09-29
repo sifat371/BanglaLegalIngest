@@ -20,7 +20,7 @@ python -m pip install -e ".[manual,bangla,dev,release]"
 
 ruff check src tests examples
 pytest
-legal-ingest benchmark
+bangla-legal-ingest benchmark
 
 rm -rf build dist
 python -m build
@@ -36,8 +36,8 @@ python -m venv .release-test
 source .release-test/bin/activate
 
 python -m pip install dist/*.whl
-legal-ingest --version
-legal-ingest schema --model result
+bangla-legal-ingest --version
+bangla-legal-ingest schema --model result
 ```
 
 For PDF extraction tests, install the relevant optional dependencies as part of the release test.
@@ -48,6 +48,10 @@ Create a signed or normal Git tag matching the chosen version and publish releas
 the changelog.
 
 ## 5. PyPI
+
+The intended distribution name is `bangla-legal-ingest`. The import namespace remains
+`legal_ingest`; changing the distribution name does not require downstream Python import changes.
+
 
 The repository is not configured to publish automatically yet. When a PyPI project is created,
 prefer PyPI Trusted Publishing / GitHub OIDC over long-lived API tokens.

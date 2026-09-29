@@ -1,12 +1,12 @@
-# Legal Document Ingestion
+# BanglaLegalIngest
 
-[![CI](https://github.com/sifat371/legal-document-ingestion/actions/workflows/ci.yml/badge.svg)](https://github.com/sifat371/legal-document-ingestion/actions/workflows/ci.yml)
+[![CI](https://github.com/sifat371/BanglaLegalIngest/actions/workflows/ci.yml/badge.svg)](https://github.com/sifat371/BanglaLegalIngest/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](pyproject.toml)
 [![Status: Alpha](https://img.shields.io/badge/status-alpha-orange.svg)](CHANGELOG.md)
 
-A reusable Python toolkit for ingesting multilingual Bangladesh legal PDFs into page-aware,
-provenance-preserving document objects and retrieval-ready chunks.
+BanglaLegalIngest is a reusable Python toolkit for ingesting multilingual Bangladesh legal PDFs
+into page-aware, provenance-preserving document objects and retrieval-ready chunks.
 
 The package is designed for legal search, RAG, document analysis, research pipelines, and other
 systems that need a stable ingestion layer instead of one-off PDF scripts.
@@ -68,8 +68,8 @@ LegalDocument
 Until the first PyPI release is published, install from source:
 
 ```bash
-git clone https://github.com/sifat371/legal-document-ingestion.git
-cd legal-document-ingestion
+git clone https://github.com/sifat371/BanglaLegalIngest.git
+cd BanglaLegalIngest
 
 python -m venv .venv
 source .venv/bin/activate  # Windows: .venv\Scripts\activate
@@ -79,6 +79,17 @@ python -m pip install ".[manual,bangla]"
 ```
 
 Python **3.11+** is required.
+
+### Naming
+
+- **Repository:** `BanglaLegalIngest`
+- **Python distribution:** `bangla-legal-ingest` (for the future PyPI release)
+- **Python import:** `legal_ingest`
+- **Primary CLI:** `bangla-legal-ingest`
+- **Compatibility CLI alias:** `legal-ingest`
+
+Keeping the import namespace stable avoids breaking downstream Python code while the public project
+name becomes more descriptive.
 
 ### 2. Ingest a PDF
 
@@ -120,19 +131,19 @@ selected legal metadata.
 Canonical JSON:
 
 ```bash
-legal-ingest ingest judgment.pdf
+bangla-legal-ingest ingest judgment.pdf
 ```
 
 Markdown:
 
 ```bash
-legal-ingest ingest judgment.pdf --format markdown
+bangla-legal-ingest ingest judgment.pdf --format markdown
 ```
 
 Retrieval chunks as JSONL:
 
 ```bash
-legal-ingest ingest judgment.pdf \
+bangla-legal-ingest ingest judgment.pdf \
   --format chunks \
   --output chunks.jsonl
 ```
@@ -140,20 +151,20 @@ legal-ingest ingest judgment.pdf \
 Use a specific extractor:
 
 ```bash
-legal-ingest ingest judgment.pdf --extractor pypdf
+bangla-legal-ingest ingest judgment.pdf --extractor pypdf
 ```
 
 Allow optional Docling during automatic routing:
 
 ```bash
 python -m pip install ".[docling,bangla]"
-legal-ingest ingest judgment.pdf --auto-docling
+bangla-legal-ingest ingest judgment.pdf --auto-docling
 ```
 
 Run the committed regression validation:
 
 ```bash
-legal-ingest benchmark
+bangla-legal-ingest benchmark
 ```
 
 ## Output model
@@ -274,7 +285,7 @@ reference implementations. New integrations should use `legal_ingest`.
 python -m pip install -e ".[manual,bangla,dev]"
 ruff check src tests examples
 pytest
-legal-ingest benchmark
+bangla-legal-ingest benchmark
 ```
 
 Package metadata can also be validated before a release:

@@ -3,9 +3,9 @@ requires = ["hatchling>=1.25"]
 build-backend = "hatchling.build"
 
 [project]
-name = "legal-document-ingestion"
-version = "0.6.0a1"
-description = "Page-aware ingestion, Bangla normalization, legal metadata parsing, and retrieval-ready exports for Bangladesh legal PDFs"
+name = "bangla-legal-ingest"
+version = "0.7.0a1"
+description = "BanglaLegalIngest: page-aware ingestion, Bangla encoding handling, legal metadata parsing, and retrieval-ready exports for Bangladesh legal PDFs"
 readme = "README.md"
 requires-python = ">=3.11"
 license = { file = "LICENSE" }
@@ -64,12 +64,13 @@ all = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/sifat371/legal-document-ingestion"
-Repository = "https://github.com/sifat371/legal-document-ingestion"
-Issues = "https://github.com/sifat371/legal-document-ingestion/issues"
-Documentation = "https://github.com/sifat371/legal-document-ingestion/tree/main/docs"
+Homepage = "https://github.com/sifat371/BanglaLegalIngest"
+Repository = "https://github.com/sifat371/BanglaLegalIngest"
+Issues = "https://github.com/sifat371/BanglaLegalIngest/issues"
+Documentation = "https://github.com/sifat371/BanglaLegalIngest/tree/main/docs"
 
 [project.scripts]
+bangla-legal-ingest = "legal_ingest.cli:main"
 legal-ingest = "legal_ingest.cli:main"
 
 [tool.hatch.build.targets.wheel]

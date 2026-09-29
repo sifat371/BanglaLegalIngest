@@ -18,8 +18,8 @@ from legal_ingest.schemas import IngestionResult, LegalDocument
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="legal-ingest",
-        description="Reusable ingestion primitives for Bangladesh legal documents.",
+        prog="bangla-legal-ingest",
+        description="BanglaLegalIngest: reusable ingestion for Bangladesh legal PDFs.",
     )
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
 

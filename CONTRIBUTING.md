@@ -21,8 +21,8 @@ have the right to redistribute them.
 ## Development setup
 
 ```bash
-git clone https://github.com/sifat371/legal-document-ingestion.git
-cd legal-document-ingestion
+git clone https://github.com/sifat371/BanglaLegalIngest.git
+cd BanglaLegalIngest
 
 python -m venv .venv
 source .venv/bin/activate  # Windows: .venv\Scripts\activate
@@ -36,7 +36,7 @@ Run the local checks:
 ```bash
 ruff check src tests examples
 pytest
-legal-ingest benchmark
+bangla-legal-ingest benchmark
 ```
 
 ## Pull requests

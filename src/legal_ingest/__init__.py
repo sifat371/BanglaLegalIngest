@@ -1,4 +1,4 @@
-"""Public package interface for legal-document-ingestion."""
+"""Public Python interface for BanglaLegalIngest."""
 
 from legal_ingest.benchmarking import (
     run_encoding_benchmark,
@@ -35,7 +35,7 @@ from legal_ingest.schemas import (
     RoutingAttempt,
 )
 
-__version__ = "0.6.0a1"
+__version__ = "0.7.0a1"
 
 __all__ = [
     "__version__",
