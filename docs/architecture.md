@@ -1,9 +1,9 @@
 # Architecture
 
-## Current boundary: Stage 4
+## Current boundary: Stage 5
 
-The module now separates extraction, encoding normalization, legal metadata parsing, and canonical
-document assembly.
+The module now separates extraction, routing, encoding normalization, legal metadata parsing,
+canonical assembly, and output adapters.
 
 ~~~text
 PDF
@@ -11,45 +11,44 @@ PDF
  v
 LegalDocumentPipeline
  |
- +-- pdfplumber
- +-- pypdf
- +-- Docling (optional)
+ v
+quality-aware extractor routing
+ |-- pdfplumber
+ |-- pypdf
+ |-- Docling (optional opt-in fallback)
  |
  v
-ExtractedContent with PageContent[]
+ExtractedContent + ExtractionQuality
  |
  v
-Bangla source-encoding detection
+Bangla/Bijoy detection + selective normalization
  |
  v
-selective Bijoy -> Unicode normalization
+deterministic legal metadata parsing + EvidenceSpan
  |
  v
-deterministic legal metadata parsers
- |-- case identity
- |-- court / district
- |-- judges
- |-- parties
- |-- dates
- |-- citations
+LegalDocument
  |
- v
-LegalDocument + page-relative metadata evidence
+ +-- canonical JSON
+ +-- Markdown
+ +-- page-grounded RetrievalChunk[]
+                    |
+                    v
+             downstream RAG / Law Buddy
 ~~~
 
-Metadata parsing runs on normalized page text, so downstream fields see Unicode text where Bijoy
-conversion succeeded.
+## Stable boundaries
 
-## Invariants
-
-- extractors preserve one-based page identity;
-- encoding classification describes source text before conversion;
-- metadata parsers do not call external services or LLMs;
-- unsupported metadata stays empty rather than being guessed;
-- field evidence points to the page text used by the parser;
-- downstream systems can disable metadata parsing without changing extraction behavior.
+- extractors do not write output files;
+- routing uses observable text signals, not semantic/legal claims;
+- encoding normalization preserves page identity;
+- metadata extraction is deterministic and evidence-aware;
+- exporters accept canonical models rather than re-parsing source PDFs;
+- retrieval chunks preserve page and character provenance;
+- Law Buddy remains downstream and is not imported by this package.
 
 ## Remaining plan
 
-- Stage 5: quality-based extractor routing, exporters, and retrieval-ready chunks.
-- Stage 6: manually verified gold sets and published extraction/metadata metrics.
+Stage 6 will add manually verified benchmark sets and measured extraction/metadata results. Those
+measurements will determine whether routing thresholds, parser patterns, or chunk defaults should be
+changed before a stable non-alpha release.

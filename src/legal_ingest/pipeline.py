@@ -3,6 +3,7 @@
 import hashlib
 import time
 from collections.abc import Iterable
+from dataclasses import dataclass
 from pathlib import Path
 from typing import TypeAlias
 
@@ -11,18 +12,32 @@ from legal_ingest.encoding import process_extracted_content
 from legal_ingest.exceptions import ExtractionError, LegalIngestError, UnsupportedDocumentError
 from legal_ingest.extractors import DocumentExtractor, create_extractor
 from legal_ingest.parsing import parse_legal_metadata
+from legal_ingest.quality import assess_extraction_quality
 from legal_ingest.schemas import (
+    ExtractedContent,
     ExtractionDiagnostics,
+    ExtractionQuality,
     IngestionResult,
     LegalDocument,
     LegalMetadata,
+    RoutingAttempt,
 )
 
 PathInput: TypeAlias = str | Path
 
 
+@dataclass(slots=True)
+class _ExtractionSelection:
+    content: ExtractedContent
+    extractor_name: str
+    fallback_used: bool
+    warnings: list[str]
+    quality: ExtractionQuality
+    attempts: list[RoutingAttempt]
+
+
 class LegalDocumentPipeline:
-    """Coordinate extraction, encoding normalization, and metadata parsing."""
+    """Coordinate extraction, quality routing, normalization, and metadata parsing."""
 
     def __init__(
         self,
@@ -43,28 +58,13 @@ class LegalDocumentPipeline:
 
         path = self._validate_source(source)
         started = time.perf_counter()
-
-        if self._custom_extractor is not None:
-            content = self._custom_extractor.extract(path)
-            self._require_minimum_text(content.text, self._custom_extractor.name)
-            extractor_name = self._custom_extractor.name
-            fallback_used = False
-            warnings = list(content.warnings)
-        elif self.config.extractor == "auto":
-            content, extractor_name, fallback_used, warnings = self._extract_auto(path)
-        else:
-            backend = create_extractor(self.config.extractor)
-            content = backend.extract(path)
-            self._require_minimum_text(content.text, backend.name)
-            extractor_name = backend.name
-            fallback_used = False
-            warnings = list(content.warnings)
+        selection = self._select_extraction(path)
 
         content, encoding = process_extracted_content(
-            content,
+            selection.content,
             convert_bijoy=self.config.convert_bijoy,
         )
-        warnings = list(dict.fromkeys([*warnings, *content.warnings]))
+        warnings = list(dict.fromkeys([*selection.warnings, *content.warnings]))
 
         metadata = (
             parse_legal_metadata(content.pages)
@@ -85,12 +85,15 @@ class LegalDocumentPipeline:
             text=content.text,
         )
         diagnostics = ExtractionDiagnostics(
-            extractor=extractor_name,
-            fallback_used=fallback_used,
+            extractor=selection.extractor_name,
+            fallback_used=selection.fallback_used,
             processing_seconds=elapsed,
+            quality=selection.quality,
+            attempted_extractors=selection.attempts,
             quality_metrics={
                 "page_count": float(len(content.pages)),
                 "extracted_characters": float(len(content.text)),
+                "extraction_usability_score": selection.quality.usability_score,
                 "unicode_bangla_chars": float(encoding.unicode_bangla_chars),
                 "bijoy_indicators": float(encoding.bijoy_indicators),
                 "bijoy_candidate_lines": float(encoding.bijoy_candidate_lines),
@@ -105,37 +108,128 @@ class LegalDocumentPipeline:
 
         return [self.ingest(source) for source in sources]
 
-    def _extract_auto(self, path: Path):
-        warnings: list[str] = []
-        primary_error: str | None = None
-
-        try:
-            primary = create_extractor("pdfplumber")
-            content = primary.extract(path)
-            if self._has_minimum_text(content.text):
-                return content, primary.name, False, list(content.warnings)
-            primary_error = (
-                f"pdfplumber extracted {len(content.text)} characters, below the configured "
-                f"minimum of {self.config.min_extracted_characters}."
+    def _select_extraction(self, path: Path) -> _ExtractionSelection:
+        if self._custom_extractor is not None:
+            content = self._custom_extractor.extract(path)
+            self._require_minimum_text(content.text, self._custom_extractor.name)
+            quality = assess_extraction_quality(content)
+            attempt = self._successful_attempt(self._custom_extractor.name, content, quality)
+            return _ExtractionSelection(
+                content=content,
+                extractor_name=self._custom_extractor.name,
+                fallback_used=False,
+                warnings=list(content.warnings),
+                quality=quality,
+                attempts=[attempt],
             )
-            warnings.extend(content.warnings)
-            warnings.append(primary_error)
-        except LegalIngestError as exc:
-            primary_error = str(exc)
-            warnings.append(f"pdfplumber unavailable or failed: {exc}")
 
-        try:
-            fallback = create_extractor("pypdf")
-            content = fallback.extract(path)
-            self._require_minimum_text(content.text, fallback.name)
+        if self.config.extractor == "auto":
+            return self._extract_auto(path)
+
+        backend = create_extractor(self.config.extractor)
+        content = backend.extract(path)
+        self._require_minimum_text(content.text, backend.name)
+        quality = assess_extraction_quality(content)
+        attempt = self._successful_attempt(backend.name, content, quality)
+        return _ExtractionSelection(
+            content=content,
+            extractor_name=backend.name,
+            fallback_used=False,
+            warnings=list(content.warnings),
+            quality=quality,
+            attempts=[attempt],
+        )
+
+    def _extract_auto(self, path: Path) -> _ExtractionSelection:
+        names = ["pdfplumber", "pypdf"]
+        if self.config.auto_docling_fallback:
+            names.append("docling")
+
+        attempts: list[RoutingAttempt] = []
+        warnings: list[str] = []
+        candidates: list[tuple[str, ExtractedContent, ExtractionQuality]] = []
+
+        for name in names:
+            try:
+                backend = create_extractor(name)
+                content = backend.extract(path)
+            except LegalIngestError as exc:
+                attempts.append(
+                    RoutingAttempt(
+                        extractor=name,
+                        succeeded=False,
+                        error=str(exc),
+                    )
+                )
+                warnings.append(f"{name} unavailable or failed: {exc}")
+                continue
+
+            quality = assess_extraction_quality(content)
+            attempts.append(self._successful_attempt(name, content, quality))
+
+            enough_text = self._has_minimum_text(content.text)
+            if enough_text:
+                candidates.append((name, content, quality))
+
+            if enough_text and quality.usability_score >= self.config.min_quality_score:
+                return _ExtractionSelection(
+                    content=content,
+                    extractor_name=name,
+                    fallback_used=name != names[0],
+                    warnings=[*warnings, *content.warnings],
+                    quality=quality,
+                    attempts=attempts,
+                )
+
             warnings.extend(content.warnings)
-            return content, fallback.name, True, warnings
-        except LegalIngestError as exc:
-            message = "Automatic extraction failed with both pdfplumber and pypdf."
-            if primary_error:
-                message += f" Primary: {primary_error}"
-            message += f" Fallback: {exc}"
-            raise ExtractionError(message) from exc
+            if not enough_text:
+                warnings.append(
+                    f"{name} extracted {len(content.text.strip())} characters, below the "
+                    f"configured minimum of {self.config.min_extracted_characters}."
+                )
+            else:
+                warnings.append(
+                    f"{name} extraction usability score "
+                    f"{quality.usability_score:.3f} was below the configured threshold "
+                    f"{self.config.min_quality_score:.3f}."
+                )
+
+        if candidates:
+            name, content, quality = max(
+                candidates,
+                key=lambda candidate: candidate[2].usability_score,
+            )
+            warnings.append(
+                "No automatic extractor met the configured usability threshold; "
+                f"selected the best available candidate: {name} "
+                f"({quality.usability_score:.3f})."
+            )
+            return _ExtractionSelection(
+                content=content,
+                extractor_name=name,
+                fallback_used=name != names[0],
+                warnings=list(dict.fromkeys([*warnings, *content.warnings])),
+                quality=quality,
+                attempts=attempts,
+            )
+
+        raise ExtractionError(
+            "Automatic extraction failed: no configured backend produced the minimum "
+            f"{self.config.min_extracted_characters} characters."
+        )
+
+    @staticmethod
+    def _successful_attempt(
+        name: str,
+        content: ExtractedContent,
+        quality: ExtractionQuality,
+    ) -> RoutingAttempt:
+        return RoutingAttempt(
+            extractor=name,
+            succeeded=True,
+            extracted_characters=len(content.text),
+            quality_score=quality.usability_score,
+        )
 
     def _has_minimum_text(self, text: str) -> bool:
         return len(text.strip()) >= self.config.min_extracted_characters

@@ -3,8 +3,15 @@
 import argparse
 import json
 from collections.abc import Sequence
+from pathlib import Path
 
 from legal_ingest import LegalDocumentPipeline, PipelineConfig, __version__
+from legal_ingest.exporters import (
+    chunks_to_jsonl,
+    to_json,
+    to_markdown,
+    to_retrieval_chunks,
+)
 from legal_ingest.schemas import IngestionResult, LegalDocument
 
 
@@ -30,20 +37,31 @@ def build_parser() -> argparse.ArgumentParser:
 
     ingest_parser = subparsers.add_parser(
         "ingest",
-        help="Extract one PDF and print the canonical ingestion result as JSON.",
+        help="Extract one PDF and render a canonical export.",
     )
     ingest_parser.add_argument("source", help="Path to a PDF file.")
     ingest_parser.add_argument(
         "--extractor",
         choices=("auto", "pdfplumber", "pypdf", "docling"),
         default="auto",
-        help="Extraction backend. Auto currently uses pdfplumber with pypdf fallback.",
+        help="Extraction backend.",
     )
     ingest_parser.add_argument(
         "--min-chars",
         type=int,
         default=100,
         help="Minimum extracted non-whitespace characters required for success.",
+    )
+    ingest_parser.add_argument(
+        "--min-quality",
+        type=float,
+        default=0.65,
+        help="Automatic-routing usability threshold between 0 and 1.",
+    )
+    ingest_parser.add_argument(
+        "--auto-docling",
+        action="store_true",
+        help="Allow auto mode to try optional Docling after lightweight extractors.",
     )
     ingest_parser.add_argument(
         "--no-convert-bijoy",
@@ -56,11 +74,46 @@ def build_parser() -> argparse.ArgumentParser:
         help="Skip deterministic legal metadata parsing.",
     )
     ingest_parser.add_argument(
+        "--format",
+        choices=("json", "markdown", "chunks"),
+        default="json",
+        help="Output representation.",
+    )
+    ingest_parser.add_argument(
+        "--output",
+        help="Optional output file. Without this option the export is printed.",
+    )
+    ingest_parser.add_argument(
+        "--chunk-size",
+        type=int,
+        default=1000,
+        help="Maximum characters per retrieval chunk.",
+    )
+    ingest_parser.add_argument(
+        "--chunk-overlap",
+        type=int,
+        default=150,
+        help="Character overlap between retrieval chunks.",
+    )
+    ingest_parser.add_argument(
         "--compact",
         action="store_true",
         help="Print compact JSON instead of indented JSON.",
     )
     return parser
+
+
+def _render_result(args, result: IngestionResult) -> str:
+    if args.format == "markdown":
+        return to_markdown(result)
+    if args.format == "chunks":
+        chunks = to_retrieval_chunks(
+            result.document,
+            chunk_size=args.chunk_size,
+            overlap=args.chunk_overlap,
+        )
+        return chunks_to_jsonl(chunks)
+    return to_json(result, indent=None if args.compact else 2)
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -76,12 +129,20 @@ def main(argv: Sequence[str] | None = None) -> int:
         config = PipelineConfig(
             extractor=args.extractor,
             min_extracted_characters=args.min_chars,
+            min_quality_score=args.min_quality,
+            auto_docling_fallback=args.auto_docling,
             convert_bijoy=not args.no_convert_bijoy,
             parse_metadata=not args.no_metadata,
         )
         result = LegalDocumentPipeline(config).ingest(args.source)
-        indent = None if args.compact else 2
-        print(result.model_dump_json(indent=indent))
+        rendered = _render_result(args, result)
+
+        if args.output:
+            output = Path(args.output)
+            output.parent.mkdir(parents=True, exist_ok=True)
+            output.write_text(rendered, encoding="utf-8")
+        else:
+            print(rendered, end="" if rendered.endswith("\n") else "\n")
         return 0
 
     parser.print_help()
