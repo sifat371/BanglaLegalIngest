@@ -81,12 +81,36 @@ class EncodingInfo(StrictModel):
     conversion_failures: int = Field(default=0, ge=0)
 
 
+class ExtractionQuality(StrictModel):
+    """Transparent text-extraction usability signals."""
+
+    page_count: int = Field(ge=0)
+    non_empty_page_ratio: float = Field(ge=0.0, le=1.0)
+    printable_ratio: float = Field(ge=0.0, le=1.0)
+    replacement_char_ratio: float = Field(ge=0.0, le=1.0)
+    control_char_ratio: float = Field(ge=0.0, le=1.0)
+    average_chars_per_page: float = Field(ge=0.0)
+    usability_score: float = Field(ge=0.0, le=1.0)
+
+
+class RoutingAttempt(StrictModel):
+    """One extractor attempt made by automatic routing."""
+
+    extractor: str
+    succeeded: bool
+    extracted_characters: int = Field(default=0, ge=0)
+    quality_score: float | None = Field(default=None, ge=0.0, le=1.0)
+    error: str | None = None
+
+
 class ExtractionDiagnostics(StrictModel):
-    """Observable extraction behavior and quality signals."""
+    """Observable extraction behavior and routing signals."""
 
     extractor: str
     fallback_used: bool = False
     processing_seconds: float | None = Field(default=None, ge=0)
+    quality: ExtractionQuality | None = None
+    attempted_extractors: list[RoutingAttempt] = Field(default_factory=list)
     quality_metrics: dict[str, float] = Field(default_factory=dict)
     warnings: list[str] = Field(default_factory=list)
 
@@ -109,3 +133,24 @@ class IngestionResult(StrictModel):
 
     document: LegalDocument
     diagnostics: ExtractionDiagnostics
+
+
+class RetrievalChunk(StrictModel):
+    """Page-grounded chunk suitable for downstream retrieval/indexing."""
+
+    chunk_id: str
+    document_id: str
+    source_filename: str
+    source_sha256: str | None = None
+    page_start: int = Field(ge=1)
+    page_end: int = Field(ge=1)
+    chunk_index: int = Field(ge=0)
+    char_start: int = Field(ge=0)
+    char_end: int = Field(ge=0)
+    text: str
+    case_number: str | None = None
+    case_type: str | None = None
+    court: str | None = None
+    district: str | None = None
+    judges: list[str] = Field(default_factory=list)
+    citations: list[str] = Field(default_factory=list)
