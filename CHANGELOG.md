@@ -5,6 +5,17 @@ All notable public-facing changes will be documented here.
 The project follows semantic-versioning principles while it remains pre-1.0: minor releases may
 still include intentional API changes, and those changes should be documented.
 
+## [0.7.0a1] - 2026-09-29
+
+### Changed
+
+- renamed the public repository from `legal-document-ingestion` to `BanglaLegalIngest`;
+- renamed the Python distribution metadata to `bangla-legal-ingest`;
+- made `bangla-legal-ingest` the primary CLI command;
+- retained `legal-ingest` as a compatibility CLI alias;
+- kept the Python import namespace `legal_ingest` stable for downstream code;
+- updated repository URLs, documentation, citation metadata, and public branding.
+
 ## [0.6.0a1] - 2026-09-29
 
 First public-alpha packaging baseline after the repository maturation work.

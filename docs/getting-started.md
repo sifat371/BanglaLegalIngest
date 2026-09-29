@@ -10,8 +10,8 @@
 ## Install from source
 
 ```bash
-git clone https://github.com/sifat371/legal-document-ingestion.git
-cd legal-document-ingestion
+git clone https://github.com/sifat371/BanglaLegalIngest.git
+cd BanglaLegalIngest
 
 python -m venv .venv
 source .venv/bin/activate  # Windows: .venv\Scripts\activate
@@ -19,6 +19,12 @@ source .venv/bin/activate  # Windows: .venv\Scripts\activate
 python -m pip install --upgrade pip
 python -m pip install ".[manual,bangla]"
 ```
+
+## Naming
+
+The public project name is **BanglaLegalIngest**. The installable distribution is named
+`bangla-legal-ingest`, while the Python import remains `legal_ingest` for a short and stable API.
+The primary CLI is `bangla-legal-ingest`; `legal-ingest` is retained as a compatibility alias.
 
 ## Minimal Python example
 
@@ -86,11 +92,11 @@ of the chunk contract.
 ## CLI
 
 ```bash
-legal-ingest ingest judgment.pdf
-legal-ingest ingest judgment.pdf --format markdown
-legal-ingest ingest judgment.pdf --format chunks --output chunks.jsonl
-legal-ingest ingest judgment.pdf --extractor pypdf
-legal-ingest benchmark
+bangla-legal-ingest ingest judgment.pdf
+bangla-legal-ingest ingest judgment.pdf --format markdown
+bangla-legal-ingest ingest judgment.pdf --format chunks --output chunks.jsonl
+bangla-legal-ingest ingest judgment.pdf --extractor pypdf
+bangla-legal-ingest benchmark
 ```
 
 ## What to inspect when something looks wrong

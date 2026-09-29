@@ -48,4 +48,4 @@ def test_cli_help_without_subcommand(capsys) -> None:
     output = capsys.readouterr().out
 
     assert exit_code == 0
-    assert "legal-ingest" in output
+    assert "bangla-legal-ingest" in output

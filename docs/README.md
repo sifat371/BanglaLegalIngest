@@ -1,8 +1,10 @@
 # Documentation
 
-Start here if you are evaluating or integrating `legal-document-ingestion`.
+Start here if you are evaluating or integrating **BanglaLegalIngest**.
 
 ## User guides
+
+- [Project naming and compatibility](naming.md)
 
 - [Getting started](getting-started.md)
 - [Public API](public-api.md)

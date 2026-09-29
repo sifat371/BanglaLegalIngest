@@ -130,6 +130,12 @@ The package also exports the seed benchmark runners for reproducible regression 
 from legal_ingest import run_encoding_benchmark, run_metadata_benchmark, run_seed_benchmarks
 ```
 
+## Project naming
+
+The repository and public project are named **BanglaLegalIngest**. The Python distribution name is
+`bangla-legal-ingest`, the import namespace remains `legal_ingest`, and the primary CLI is
+`bangla-legal-ingest`. The older `legal-ingest` CLI name remains as a compatibility alias.
+
 ## Compatibility
 
 The project is pre-1.0. Public API changes should be documented in `CHANGELOG.md`. Downstream

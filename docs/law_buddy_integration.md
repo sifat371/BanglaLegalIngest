@@ -28,7 +28,7 @@ for chunk in chunks:
 ~~~
 
 Law Buddy should own retrieval, ranking, embeddings, vector/BM25 indexes, answer generation, and
-citation verification. legal-document-ingestion should own source extraction, text normalization,
+citation verification. BanglaLegalIngest should own source extraction, text normalization,
 document structure, metadata parsing, and source provenance.
 
 This boundary allows each repository to evolve independently while sharing a stable ingestion
