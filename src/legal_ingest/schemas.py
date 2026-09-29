@@ -1,6 +1,6 @@
 """Canonical data contracts shared by all ingestion backends."""
 
-from enum import Enum
+from enum import StrEnum
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -11,7 +11,7 @@ class StrictModel(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
-class EncodingKind(str, Enum):
+class EncodingKind(StrEnum):
     """High-level text-encoding classification used by the pipeline."""
 
     UNICODE_BANGLA = "unicode_bangla"
