@@ -1,174 +1,142 @@
 # Legal Document Ingestion
 
-Reusable foundations for processing multilingual Bangladesh legal documents, with particular
-attention to mixed English/Bangla text and legacy Bijoy-encoded Bangla.
+A reusable Python module for page-aware ingestion of multilingual Bangladesh legal PDFs, with a
+roadmap for legacy Bijoy normalization, legal metadata parsing, and retrieval-ready exports.
 
-> **Status:** active modularization. The original manual and Docling pipelines are preserved
-> while their behavior is migrated into the new `legal_ingest` package.
+> **Status:** Stage 2 active — package foundation and unified extraction API are implemented.
+> Bangla encoding normalization and legal metadata migration are the next stages.
 
 ## Why this project exists
 
-Bangladesh legal PDFs can combine:
-
-- English and Bangla in the same document;
-- Unicode Bangla and legacy Bijoy-encoded text;
-- complex court-document layouts;
-- legal metadata such as case numbers, benches, parties, dates, and citations.
-
-The repository began as an experiment comparing a lightweight pdfplumber/pypdf pipeline with a
-layout-aware Docling pipeline. It is now being upgraded into a reusable ingestion module with a
-stable output contract suitable for downstream retrieval systems such as Law Buddy.
-
-## Current package foundation
-
-Stage 1 introduces:
-
-- installable `src/legal_ingest` package;
-- canonical Pydantic schemas;
-- shared pipeline configuration;
-- domain-specific exceptions;
-- a small CLI for inspecting the canonical JSON schema;
-- pytest coverage for the contracts;
-- Ruff linting;
-- GitHub Actions CI;
-- optional dependency groups for lightweight and Docling-based extraction.
-
-The extraction algorithms still live in the legacy directories during this stage. Moving them
-behind common extractor interfaces is the next migration step.
+Bangladesh legal PDFs can combine English and Bangla, legacy Bijoy-encoded text, complex court
+layouts, and metadata such as case numbers, benches, parties, dates, and citations. The project
+began as two extraction experiments and is being matured into a stable module suitable for
+downstream systems such as Law Buddy.
 
 ## Install
 
-Base package:
-
-```bash
-python -m pip install -e .
-```
-
-Development tools:
-
-```bash
-python -m pip install -e ".[dev]"
-```
-
-Legacy lightweight extraction dependencies:
+For the lightweight extraction path:
 
 ```bash
 python -m pip install -e ".[manual]"
 ```
 
-Docling dependencies:
+For development:
+
+```bash
+python -m pip install -e ".[manual,dev]"
+```
+
+Docling remains optional:
 
 ```bash
 python -m pip install -e ".[docling]"
 ```
 
-## Package contract
+## Python API
 
 ```python
-from legal_ingest import LegalDocument, PipelineConfig
+from legal_ingest import LegalDocumentPipeline
 
-config = PipelineConfig(extractor="auto", convert_bijoy=True)
+pipeline = LegalDocumentPipeline()
+result = pipeline.ingest("judgment.pdf")
 
-document_schema = LegalDocument.model_json_schema()
+print(result.document.source_filename)
+print(result.document.pages[0].page_number)
+print(result.document.pages[0].text)
+print(result.diagnostics.extractor)
 ```
 
-Inspect the schema from the CLI:
+Choose a backend explicitly:
+
+```python
+pipeline = LegalDocumentPipeline(extractor="pypdf")
+result = pipeline.ingest("judgment.pdf")
+```
+
+The default `auto` mode currently uses pdfplumber and falls back to pypdf if extraction fails or
+does not meet the configured minimum text length. Automatic Docling routing is intentionally
+deferred until the quality-routing stage.
+
+## CLI
+
+Extract a document and print canonical JSON:
+
+```bash
+legal-ingest ingest judgment.pdf
+```
+
+Select a backend:
+
+```bash
+legal-ingest ingest judgment.pdf --extractor pypdf
+legal-ingest ingest judgment.pdf --extractor docling
+```
+
+Inspect the stable schema:
 
 ```bash
 legal-ingest schema --model result
 ```
 
-## Target architecture
+## Current architecture
 
 ```text
-legal PDF
-   |
-   v
-extractor (auto / pdfplumber / pypdf / docling)
-   |
-   v
-page-aware text
-   |
-   v
-Bangla encoding analysis and normalization
-   |
-   v
-legal metadata and structure parsing
-   |
-   v
-canonical LegalDocument
-   |
-   +--> JSON / Markdown
-   |
-   +--> provenance-aware retrieval chunks
+PDF
+ |
+ v
+LegalDocumentPipeline
+ |
+ +-- pdfplumber
+ +-- pypdf
+ +-- Docling (optional)
+ |
+ v
+ExtractedContent
+ |-- PageContent[]
+ |-- combined text
+ |-- warnings
+ |
+ v
+LegalDocument + ExtractionDiagnostics
 ```
 
-See [docs/architecture.md](docs/architecture.md).
+Every backend now returns the same page-aware intermediate contract. The public pipeline computes a
+deterministic SHA-256 document identity, preserves source pages, and returns objects instead of
+writing files through hidden global paths.
 
-## Existing extraction experiments
+See [docs/architecture.md](docs/architecture.md) and
+[docs/extractors.md](docs/extractors.md).
 
-### Manual pipeline
+## What Stage 2 intentionally does not do
 
-The original `manual_ingestion/` implementation currently provides:
+The original manual script already contains experimental Bijoy detection/conversion and metadata
+regexes. Those are not silently copied into the new pipeline yet. They will be migrated and tested
+as separate stages so extraction, encoding normalization, and legal parsing can be evaluated
+independently.
 
-- pdfplumber extraction with pypdf fallback;
-- heuristic Bangla/Bijoy detection;
-- line-level Bijoy-to-Unicode conversion;
-- regex-based legal metadata extraction;
-- text normalization;
-- text and metadata export.
+The legacy directories remain available during migration:
 
-### Docling pipeline
-
-The original `docling_ingestion/` implementation provides:
-
-- layout-aware PDF conversion;
-- Markdown export;
-- JSON export;
-- regex-based legal metadata extraction.
-
-The legacy Docling path has not yet been validated as thoroughly as the manual path and is being
-kept separate until the common extractor interface is introduced.
+- `manual_ingestion/`
+- `docling_ingestion/`
 
 ## Known limitations
 
-- legacy metadata extraction is regex-driven and has been tested on only a small set of documents;
-- party extraction is not yet reliable across document formats;
-- Bijoy detection currently uses heuristics;
-- the legacy pipelines have different output structures;
-- scanned/image-only PDFs are not yet a supported baseline;
-- benchmark results have not yet been established.
-
-These are migration targets rather than hidden production claims.
+- PDF input only;
+- scanned/image-only PDFs are not yet an OCR baseline;
+- Docling support depends on a version with page-aware Markdown export;
+- `auto` currently routes only between pdfplumber and pypdf;
+- encoding information and legal metadata remain empty/default in the new API until Stages 3–4;
+- no benchmark results are claimed yet.
 
 ## Roadmap
 
-1. **Package foundation** — schemas, config, CLI, tests, CI.
-2. **Unified extraction** — common pdfplumber, pypdf, and optional Docling backends.
+1. **Package foundation** — complete.
+2. **Unified extraction** — in progress in this release.
 3. **Bangla encoding layer** — tested Bijoy detection and normalization.
 4. **Legal metadata parsing** — modular parsers with provenance.
-5. **Quality routing and exporters** — automatic fallback, JSON/Markdown, retrieval chunks.
+5. **Quality routing and exporters** — automatic routing, JSON/Markdown, retrieval chunks.
 6. **Benchmarking** — manually verified gold set and published extraction metrics.
-
-## Legacy usage
-
-The original scripts remain available during migration.
-
-Manual:
-
-```bash
-cd manual_ingestion
-pip install -r requirements.txt
-python ingest_legal_cases.py
-```
-
-Docling:
-
-```bash
-cd docling_ingestion
-pip install -r requirements.txt
-python ingest_with_docling.py
-```
 
 ## License
 

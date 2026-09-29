@@ -28,6 +28,14 @@ class PageContent(StrictModel):
     text: str
 
 
+class ExtractedContent(StrictModel):
+    """Backend-neutral, page-aware output returned by extractors."""
+
+    pages: list[PageContent] = Field(default_factory=list)
+    text: str = ""
+    warnings: list[str] = Field(default_factory=list)
+
+
 class Party(StrictModel):
     """A named party in a legal matter."""
 
@@ -79,7 +87,7 @@ class ExtractionDiagnostics(StrictModel):
 
 
 class LegalDocument(StrictModel):
-    """Canonical representation produced by every future extractor path."""
+    """Canonical representation produced by every ingestion path."""
 
     schema_version: str = "1.0"
     document_id: str

@@ -1,10 +1,12 @@
 """Public package interface for legal-document-ingestion."""
 
 from legal_ingest.config import PipelineConfig
+from legal_ingest.pipeline import LegalDocumentPipeline
 from legal_ingest.schemas import (
     EncodingInfo,
     EncodingKind,
     EvidenceSpan,
+    ExtractedContent,
     ExtractionDiagnostics,
     IngestionResult,
     LegalDocument,
@@ -13,14 +15,16 @@ from legal_ingest.schemas import (
     Party,
 )
 
-__version__ = "0.1.0a1"
+__version__ = "0.2.0a1"
 
 __all__ = [
     "__version__",
+    "LegalDocumentPipeline",
     "PipelineConfig",
     "EncodingInfo",
     "EncodingKind",
     "EvidenceSpan",
+    "ExtractedContent",
     "ExtractionDiagnostics",
     "IngestionResult",
     "LegalDocument",
