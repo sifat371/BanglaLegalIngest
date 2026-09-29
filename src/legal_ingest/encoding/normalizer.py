@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from legal_ingest.encoding.detector import detect_encoding, is_bijoy_line
-from legal_ingest.schemas import EncodingInfo, EncodingKind, ExtractedContent, PageContent
+from legal_ingest.schemas import EncodingInfo, ExtractedContent, PageContent
 
 
 @dataclass(slots=True)
@@ -32,7 +32,7 @@ def _load_bijoy_converter() -> Any:
 
 
 class BanglaEncodingNormalizer:
-    """Normalize only lines that the conservative detector marks as Bijoy-like."""
+    """Normalize only lines that are safe standard-Bijoy candidates."""
 
     def __init__(self, converter: Any | None = None) -> None:
         self._converter = converter
@@ -45,7 +45,7 @@ class BanglaEncodingNormalizer:
         return self._converter
 
     def normalize_text(self, text: str, *, enabled: bool = True) -> TextNormalizationResult:
-        """Convert candidate lines while preserving all non-candidate lines unchanged."""
+        """Convert standard-Bijoy candidate lines and preserve every other line."""
 
         if not enabled or not text:
             return TextNormalizationResult(text=text)
@@ -59,7 +59,7 @@ class BanglaEncodingNormalizer:
             return TextNormalizationResult(
                 text=text,
                 warnings=[
-                    "Bijoy-like text was detected but bijoy2unicode is not installed; "
+                    "Standard Bijoy-like text was detected but bijoy2unicode is not installed; "
                     "text was preserved unchanged."
                 ],
             )
@@ -112,15 +112,31 @@ def process_extracted_content(
     convert_bijoy: bool,
     normalizer: BanglaEncodingNormalizer | None = None,
 ) -> tuple[ExtractedContent, EncodingInfo]:
-    """Detect source encoding and optionally normalize candidate Bijoy lines."""
+    """Detect source encoding and safely normalize standard Bijoy candidates."""
 
     encoding = detect_encoding(content.text)
+    warnings = list(content.warnings)
 
-    if not convert_bijoy or encoding.kind not in {EncodingKind.BIJOY, EncodingKind.MIXED}:
-        return content, encoding
+    if convert_bijoy and encoding.legacy_font_candidate_lines:
+        warnings.append(
+            "Legacy font-encoded Bangla glyph text was detected in "
+            f"{encoding.legacy_font_candidate_lines} line(s). Automatic conversion was skipped "
+            "for those lines because bijoy2unicode is not reliable for this PDF-font encoding."
+        )
+
+    if not convert_bijoy or encoding.convertible_bijoy_lines == 0:
+        if warnings == content.warnings:
+            return content, encoding
+        return (
+            ExtractedContent(
+                pages=content.pages,
+                text=content.text,
+                warnings=_deduplicate(warnings),
+            ),
+            encoding,
+        )
 
     normalizer = normalizer or BanglaEncodingNormalizer()
-    warnings = list(content.warnings)
     converted_lines = 0
     failed_lines = 0
 

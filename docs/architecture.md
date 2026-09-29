@@ -1,9 +1,9 @@
 # Architecture
 
-## Current boundary: Stage 5
+## Current boundary: Stage 6
 
 The module now separates extraction, routing, encoding normalization, legal metadata parsing,
-canonical assembly, and output adapters.
+canonical assembly, output adapters, and regression validation.
 
 ~~~text
 PDF
@@ -13,42 +13,45 @@ LegalDocumentPipeline
  |
  v
 quality-aware extractor routing
- |-- pdfplumber
- |-- pypdf
- |-- Docling (optional opt-in fallback)
  |
  v
-ExtractedContent + ExtractionQuality
+page-aware text
  |
  v
-Bangla/Bijoy detection + selective normalization
+Bangla/Bijoy normalization
  |
  v
-deterministic legal metadata parsing + EvidenceSpan
+legal metadata + EvidenceSpan
  |
  v
 LegalDocument
  |
- +-- canonical JSON
- +-- Markdown
- +-- page-grounded RetrievalChunk[]
-                    |
-                    v
-             downstream RAG / Law Buddy
+ +-- JSON / Markdown
+ +-- RetrievalChunk[]
+ |
+ v
+benchmark harness
+ +-- metadata seed
+ +-- encoding seed
 ~~~
 
 ## Stable boundaries
 
 - extractors do not write output files;
-- routing uses observable text signals, not semantic/legal claims;
-- encoding normalization preserves page identity;
+- routing uses observable text signals rather than semantic/legal claims;
+- normalization preserves page identity;
 - metadata extraction is deterministic and evidence-aware;
-- exporters accept canonical models rather than re-parsing source PDFs;
+- exporters consume canonical models;
 - retrieval chunks preserve page and character provenance;
-- Law Buddy remains downstream and is not imported by this package.
+- Law Buddy remains downstream and is not imported by this package;
+- benchmark reports distinguish regression seeds from representative accuracy claims.
 
-## Remaining plan
+## Validation boundary
 
-Stage 6 will add manually verified benchmark sets and measured extraction/metadata results. Those
-measurements will determine whether routing thresholds, parser patterns, or chunk defaults should be
-changed before a stable non-alpha release.
+The committed metadata seed currently covers one repository sample judgment. The encoding seed is
+synthetic. Real-PDF extraction accuracy is intentionally not reported because the raw PDF benchmark
+corpus is not present in the repository.
+
+The next maturity milestone is therefore data expansion rather than another architecture rewrite:
+build a larger manually reviewed benchmark before changing routing thresholds or publishing broad
+performance numbers.

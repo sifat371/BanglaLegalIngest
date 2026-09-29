@@ -6,8 +6,8 @@ from legal_ingest.parsing.common import evidence_from_match, iter_matches, norma
 from legal_ingest.schemas import EvidenceSpan, PageContent
 
 COURT_PATTERN = re.compile(
-    r"(Supreme Court of Bangladesh"
-    r"(?:\s+(?:High Court|Appellate) Division)?"
+    r"(Supreme\s+Court\s+of\s+Bangladesh"
+    r"(?:\s+(?:High\s+Court|Appellate)\s+Division)?"
     r"(?:\s*\([^)]+\))?)",
     re.IGNORECASE,
 )

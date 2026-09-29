@@ -16,6 +16,7 @@ class EncodingKind(StrEnum):
 
     UNICODE_BANGLA = "unicode_bangla"
     BIJOY = "bijoy"
+    LEGACY_FONT = "legacy_font_bangla"
     MIXED = "mixed"
     NONE = "none"
     UNKNOWN = "unknown"
@@ -76,6 +77,8 @@ class EncodingInfo(StrictModel):
     bijoy_indicators: int = Field(default=0, ge=0)
     total_characters: int = Field(default=0, ge=0)
     bijoy_candidate_lines: int = Field(default=0, ge=0)
+    convertible_bijoy_lines: int = Field(default=0, ge=0)
+    legacy_font_candidate_lines: int = Field(default=0, ge=0)
     normalization_applied: bool = False
     converted_lines: int = Field(default=0, ge=0)
     conversion_failures: int = Field(default=0, ge=0)

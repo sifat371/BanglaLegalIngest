@@ -5,7 +5,10 @@ import re
 from legal_ingest.parsing.common import normalize_space
 from legal_ingest.schemas import EvidenceSpan, PageContent, Party
 
-VERSUS_PATTERN = re.compile(r"-*\s*Versus\s*-*", re.IGNORECASE)
+VERSUS_PATTERN = re.compile(
+    r"[-\s\x00-\x1f]*(?:Versus|Vs\.?|V\.)[-\s\x00-\x1f]*",
+    re.IGNORECASE,
+)
 ROLE_PATTERN = re.compile(r",?\s*-{2,}\s*(?P<role>[A-Za-z][A-Za-z -]+?)\.?$")
 NUMBER_PREFIX = re.compile(r"^\s*\d+\.\s*")
 PAREN_PREFIX = re.compile(r"^\s*\([^)]*\)\s*")
@@ -21,6 +24,25 @@ DISALLOWED_CONTEXT = (
     "present:",
 )
 
+ROLE_ONLY_WORDS = {
+    "accused",
+    "appellant",
+    "appellants",
+    "condemned",
+    "convict",
+    "defendant",
+    "informant",
+    "opposite",
+    "parties",
+    "party",
+    "petitioner",
+    "petitioners",
+    "plaintiff",
+    "prisoner",
+    "respondent",
+    "respondents",
+}
+
 
 def _line_records(text: str) -> list[tuple[str, int, int]]:
     records: list[tuple[str, int, int]] = []
@@ -34,10 +56,20 @@ def _line_records(text: str) -> list[tuple[str, int, int]]:
     return records
 
 
+def _is_role_only(value: str) -> bool:
+    words = re.findall(r"[A-Za-z]+", value.casefold())
+    return bool(words) and all(word in ROLE_ONLY_WORDS for word in words)
+
+
 def _is_party_candidate(value: str) -> bool:
     cleaned = normalize_space(value)
     if not cleaned or cleaned in {".", "-", "--"}:
         return False
+    if _is_role_only(cleaned):
+        return False
+    if VERSUS_PATTERN.search(cleaned):
+        return False
+
     lower = cleaned.lower()
     if any(marker in lower for marker in DISALLOWED_CONTEXT):
         return False
@@ -49,7 +81,7 @@ def _is_party_candidate(value: str) -> bool:
 def _clean_party(value: str) -> Party | None:
     value = PAREN_PREFIX.sub("", value)
     value = NUMBER_PREFIX.sub("", value)
-    value = normalize_space(value).strip(".- ")
+    value = normalize_space(value).strip(".- …")
     if not _is_party_candidate(value):
         return None
 
@@ -57,9 +89,9 @@ def _clean_party(value: str) -> Party | None:
     role_match = ROLE_PATTERN.search(value)
     if role_match:
         role = normalize_space(role_match.group("role")).strip(".- ")
-        value = normalize_space(value[: role_match.start()]).strip(".- ")
+        value = normalize_space(value[: role_match.start()]).strip(".- …")
 
-    if not value:
+    if not value or _is_role_only(value):
         return None
     return Party(name=value, role=role)
 
@@ -71,7 +103,7 @@ def _nearest_candidate(
 ) -> tuple[str, int, int] | None:
     index = start_index
     checked = 0
-    while 0 <= index < len(records) and checked < 4:
+    while 0 <= index < len(records) and checked < 6:
         line, start, end = records[index]
         if _is_party_candidate(line):
             return line, start, end
@@ -81,7 +113,7 @@ def _nearest_candidate(
 
 
 def parse_parties(pages: list[PageContent]) -> tuple[list[Party], list[EvidenceSpan]]:
-    """Extract parties surrounding caption-level Versus markers."""
+    """Extract parties surrounding caption-level Versus/Vs markers."""
 
     parties: list[Party] = []
     evidence: list[EvidenceSpan] = []

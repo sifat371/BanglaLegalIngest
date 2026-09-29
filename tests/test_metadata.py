@@ -79,6 +79,65 @@ def test_party_parser_does_not_repeat_legacy_broken_capture() -> None:
     )
 
 
+def test_real_caption_variants_for_court_parties_and_dates() -> None:
+    text = """IN THE SUPREME COURT OF
+BANGLADESH
+HIGH COURT DIVISION
+(CRIMINAL APPELLATE JURISDICTION)
+Present:
+Mr. Justice Md. Shohrowardi
+Criminal Appeal No. 3346 of 2022
+Nurunnahar
+…….Convict appellant
+-versus-
+The State and another
+…….respondents
+Heard on 01.06.2025, 02.06.2025 and 22.06.2025
+Judgment delivered on 17.07.2025
+"""
+    metadata = parse_legal_metadata([PageContent(page_number=1, text=text)])
+
+    assert metadata.court == (
+        "SUPREME COURT OF BANGLADESH HIGH COURT DIVISION "
+        "(CRIMINAL APPELLATE JURISDICTION)"
+    )
+    assert metadata.judges == ["Md. Shohrowardi"]
+    assert [party.name for party in metadata.parties] == [
+        "Nurunnahar",
+        "The State and another",
+    ]
+    assert metadata.hearing_dates == ["01.06.2025", "02.06.2025", "22.06.2025"]
+    assert metadata.judgment_date == "17.07.2025"
+
+
+def test_vs_caption_and_textual_judgment_date() -> None:
+    text = """In the Supreme Court of Bangladesh
+High Court Division
+(Civil Revisional Jurisdiction)
+Present:
+Mr. Justice Md. Jahangir Hossain.
+Civil Revision No.205 of 2021.
+Sham Debnath and others
+.........Petitioners.
+Vs.
+Shamol Debnath and others
+....... Opposite-Parties.
+Heard on 21.04.2024 and
+Judgment on 22nd April -2024.
+
+The principle of justice will be meet if the order of stay is maintained.
+"""
+    metadata = parse_legal_metadata([PageContent(page_number=1, text=text)])
+
+    assert metadata.judges == ["Md. Jahangir Hossain"]
+    assert [party.name for party in metadata.parties] == [
+        "Sham Debnath and others",
+        "Shamol Debnath and others",
+    ]
+    assert metadata.hearing_dates == ["21.04.2024"]
+    assert metadata.judgment_date == "22nd April -2024"
+
+
 def test_empty_pages_return_empty_metadata() -> None:
     metadata = parse_legal_metadata([])
 

@@ -1,5 +1,10 @@
 """Public package interface for legal-document-ingestion."""
 
+from legal_ingest.benchmarking import (
+    run_encoding_benchmark,
+    run_metadata_benchmark,
+    run_seed_benchmarks,
+)
 from legal_ingest.config import PipelineConfig
 from legal_ingest.encoding import BanglaEncodingNormalizer, detect_encoding, is_bijoy_line
 from legal_ingest.exporters import (
@@ -30,7 +35,7 @@ from legal_ingest.schemas import (
     RoutingAttempt,
 )
 
-__version__ = "0.5.0a1"
+__version__ = "0.6.0a1"
 
 __all__ = [
     "__version__",
@@ -42,6 +47,9 @@ __all__ = [
     "detect_encoding",
     "is_bijoy_line",
     "parse_legal_metadata",
+    "run_encoding_benchmark",
+    "run_metadata_benchmark",
+    "run_seed_benchmarks",
     "to_json",
     "to_markdown",
     "to_retrieval_chunks",

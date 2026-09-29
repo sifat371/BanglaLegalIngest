@@ -1,4 +1,8 @@
-from legal_ingest.encoding.detector import detect_encoding, is_bijoy_line
+from legal_ingest.encoding.detector import (
+    detect_encoding,
+    is_bijoy_line,
+    is_legacy_font_line,
+)
 from legal_ingest.encoding.normalizer import (
     BanglaEncodingNormalizer,
     process_extracted_content,
@@ -40,8 +44,19 @@ def test_detects_bijoy_candidate_line_conservatively() -> None:
 
     assert is_bijoy_line(text) is True
     assert info.kind == EncodingKind.BIJOY
-    assert info.bijoy_candidate_lines == 1
-    assert info.bijoy_indicators > 0
+    assert info.convertible_bijoy_lines == 1
+    assert info.legacy_font_candidate_lines == 0
+
+
+def test_detects_legacy_pdf_font_without_marking_it_convertible() -> None:
+    text = "A¡¢j A¡j¡l Ù»£ p¡mj¡­L ¢h­u Ll¡l"
+    info = detect_encoding(text)
+
+    assert is_legacy_font_line(text) is True
+    assert is_bijoy_line(text) is False
+    assert info.kind == EncodingKind.LEGACY_FONT
+    assert info.convertible_bijoy_lines == 0
+    assert info.legacy_font_candidate_lines == 1
 
 
 def test_detects_mixed_unicode_and_bijoy() -> None:
@@ -101,6 +116,23 @@ def test_process_extracted_content_preserves_page_provenance() -> None:
     assert info.kind == EncodingKind.BIJOY
     assert info.normalization_applied is True
     assert info.converted_lines == 1
+
+
+def test_process_preserves_unsafe_legacy_font_text() -> None:
+    original = "A¡¢j A¡j¡l Ù»£ p¡mj¡­L ¢h­u Ll¡l"
+    content = ExtractedContent(
+        pages=[PageContent(page_number=1, text=original)],
+        text=original,
+    )
+
+    normalized, info = process_extracted_content(content, convert_bijoy=True)
+
+    assert normalized.text == original
+    assert normalized.pages[0].text == original
+    assert info.kind == EncodingKind.LEGACY_FONT
+    assert info.normalization_applied is False
+    assert info.converted_lines == 0
+    assert any("Legacy font-encoded" in warning for warning in normalized.warnings)
 
 
 def test_process_extracted_content_can_detect_without_converting() -> None:
