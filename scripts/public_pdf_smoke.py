@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 
 from legal_ingest import LegalDocumentPipeline, PipelineConfig, to_retrieval_chunks
+from legal_ingest.encoding import is_legacy_font_line
 
 CASES = [
     {
@@ -161,6 +162,16 @@ def run(input_dir: Path) -> dict:
         metadata = result.document.metadata
         checks = _check_metadata(case, result, failures)
 
+        legacy_font_examples = [
+            {
+                "page": page.page_number,
+                "text": line,
+            }
+            for page in result.document.pages
+            for line in page.text.splitlines()
+            if is_legacy_font_line(line)
+        ][:3]
+
         normalization_differences = []
         if result.document.encoding.normalization_applied:
             source_result = no_conversion_pipeline.ingest(path)
@@ -219,6 +230,7 @@ def run(input_dir: Path) -> dict:
             "legacy_font_candidate_lines": (
                 result.document.encoding.legacy_font_candidate_lines
             ),
+            "legacy_font_examples": legacy_font_examples,
             "normalization_applied": result.document.encoding.normalization_applied,
             "converted_lines": result.document.encoding.converted_lines,
             "conversion_failures": result.document.encoding.conversion_failures,
