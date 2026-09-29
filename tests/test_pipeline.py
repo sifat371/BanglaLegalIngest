@@ -66,10 +66,16 @@ def test_auto_uses_pypdf_when_pdfplumber_is_too_short(tmp_path, monkeypatch) -> 
     path = tmp_path / "case.pdf"
     path.write_bytes(b"fake")
 
-    class NamedFake(FakeExtractor):
+    class NamedFake(DocumentExtractor):
         def __init__(self, name: str, text: str) -> None:
-            super().__init__(text)
             self.name = name
+            self.text = text
+
+        def extract(self, _path):
+            return ExtractedContent(
+                pages=[PageContent(page_number=1, text=self.text)],
+                text=self.text,
+            )
 
     extractors = {
         "pdfplumber": NamedFake("pdfplumber", "x"),
