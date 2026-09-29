@@ -1,16 +1,13 @@
 # Architecture
 
-## Current boundary: Stage 2
+## Current boundary: Stage 3
 
-The package foundation is now active and extraction backends are being migrated behind one
-page-aware contract. The legacy scripts remain in the repository for comparison while the new
-module becomes the supported integration surface.
-
-The public package is `legal_ingest`.
+The package now has a common page-aware extraction layer and a deterministic Bangla encoding layer.
+Legal metadata parsing remains intentionally separate for Stage 4.
 
 ## Canonical flow
 
-```text
+~~~text
 PDF path
    |
    v
@@ -22,48 +19,50 @@ LegalDocumentPipeline
    |
    v
 ExtractedContent
-   |  - pages[]
-   |  - combined text
-   |  - warnings
+   |
+   v
+source encoding detection
+   |
+   +--> Unicode Bangla
+   +--> Bijoy-like
+   +--> mixed
+   +--> none
+   |
+   v
+conservative line-level Bijoy normalization (optional)
+   |
    v
 LegalDocument + ExtractionDiagnostics
-```
+~~~
 
-Stage 2 does not yet perform Bangla/Bijoy normalization or legal metadata parsing. Those remain
-separate migration stages so extractor behavior can be tested independently.
+## Encoding invariants
+
+- classification describes the extracted source before conversion;
+- page numbers never change during normalization;
+- non-candidate lines are preserved;
+- failed conversions preserve original text and surface warnings;
+- missing optional conversion dependencies do not prevent detection;
+- no LLM or network call is required.
 
 ## Extraction policy
 
 Explicit modes run only the requested backend:
 
-- `pdfplumber`
-- `pypdf`
-- `docling`
+- pdfplumber
+- pypdf
+- docling
 
-`auto` is intentionally conservative in Stage 2:
+Auto mode remains intentionally conservative:
 
 1. run pdfplumber;
-2. accept it when extracted text meets `min_extracted_characters`;
+2. accept it when extracted text meets min_extracted_characters;
 3. otherwise fall back to pypdf;
 4. fail clearly when both backends fail or remain below the configured minimum.
 
-Docling is not part of automatic quality routing yet. More advanced quality metrics and routing
-belong to Stage 5.
-
-## Design rules
-
-1. **Backend-independent schema** — every backend returns `ExtractedContent`.
-2. **Page provenance first** — page identity is structured data, not a synthetic text marker.
-3. **No hidden writes** — extraction returns objects and does not write output files.
-4. **Deterministic identity** — the pipeline records a SHA-256 source digest as document ID.
-5. **Optional heavy dependencies** — Docling is imported lazily.
-6. **Deterministic core** — no LLM or paid API is required.
-7. **Downstream independence** — Law Buddy can consume the schema later, but this package never
-   imports Law Buddy.
+Advanced quality routing and automatic Docling selection remain Stage 5 work.
 
 ## Remaining migration plan
 
-- Stage 3: tested Bangla/Bijoy detection and normalization.
 - Stage 4: modular legal metadata parsing with provenance.
 - Stage 5: extraction quality routing, exporters, retrieval-ready chunks.
 - Stage 6: gold-set benchmarking and published metrics.
