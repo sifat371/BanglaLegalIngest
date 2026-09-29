@@ -124,6 +124,19 @@ committed seed data:
 These numbers are intentionally scoped to the committed seed. They must not be interpreted as
 general accuracy on Bangladesh legal documents.
 
+## Real public-PDF smoke validation
+
+The Stage 6 branch also downloads four public Bangladesh Supreme Court judgments and runs the
+actual package end to end. The latest completed smoke run ingested all four documents and passed
+31/31 explicit metadata and safety checks, while producing page-grounded retrieval chunks for every
+document.
+
+This real-document testing exposed and led to fixes for date-format variants, split court headings,
+Vs. captions, judge/party false positives, and legacy PDF-font Bangla. Legacy-font Bangla is now
+preserved with a warning instead of being passed through an unsafe automatic conversion.
+
+See docs/public-pdf-smoke.md and benchmarks/RESULTS.md.
+
 ## Validation scope
 
 The Stage 6 benchmark harness currently evaluates selected metadata fields from one manually
@@ -150,7 +163,8 @@ See docs/law_buddy_integration.md.
 - metadata patterns emphasize common English-language Bangladesh court layouts;
 - Bangla caption metadata needs dedicated patterns;
 - retrieval chunks are page-local by design;
-- committed validation data is too small for representative performance claims.
+- committed validation data is too small for representative performance claims;
+- legacy PDF-font Bangla is detected and preserved, but not yet decoded into Unicode.
 
 ## Roadmap status
 
