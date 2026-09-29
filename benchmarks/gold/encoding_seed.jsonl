@@ -1,0 +1,5 @@
+{"id":"english-only","source_kind":"synthetic","text":"Supreme Court of Bangladesh\nCriminal Appeal No. 12 of 2024","expected_kind":"none"}
+{"id":"unicode-bangla","source_kind":"synthetic","text":"বাংলাদেশ সুপ্রিম কোর্ট","expected_kind":"unicode_bangla"}
+{"id":"bijoy-like","source_kind":"synthetic","text":"Avwg AvBb ‡K †","expected_kind":"bijoy"}
+{"id":"mixed-unicode-bijoy","source_kind":"synthetic","text":"বাংলাদেশ\nAvwg AvBb ‡K †","expected_kind":"mixed"}
+{"id":"isolated-pattern-negative","source_kind":"synthetic","text":"A legal note containing Avwg as an isolated token.","expected_kind":"none"}
